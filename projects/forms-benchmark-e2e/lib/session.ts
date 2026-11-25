@@ -5,7 +5,7 @@
  * Окно замера фазы: `__probe.start` → снимок CDP → действие (только сырой ввод) → один in-page
  * промис `__bench.idle()` → снимок CDP → `__probe.stop`. Проверки (`gate`) — после окна.
  */
-import type { Browser, BrowserContext, Page } from '@playwright/test';
+import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { Cdp, delta, type Metrics } from './cdp';
 import { netGrowth, objectBytes, totalsByType } from './heap';
 import {
@@ -168,6 +168,28 @@ export class BenchSession {
     }, testIds);
   }
 
+  /**
+   * Центр элемента по локатору — как {@link centers}, для цели без своего testid: кнопки массива у
+   * китов названы одинаково во всех массивах формы и находятся по секции массива.
+   */
+  async centerOf(target: Locator): Promise<{ x: number; y: number }> {
+    const scrolled = await target.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth) {
+        el.scrollIntoView({ block: 'center', inline: 'nearest' });
+        return true;
+      }
+      return false;
+    });
+    if (scrolled) {
+      await this.page.evaluate(() => (window as unknown as BenchGlobals).__bench.idle());
+    }
+    return target.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+  }
+
   // ── Сырой ввод (внутри окна замера) ──────────────────────────────────────
   async click(at: { x: number; y: number }): Promise<void> {
     await this.page.mouse.click(at.x, at.y);
@@ -220,9 +242,14 @@ export class BenchSession {
     // Метка начала — ещё в старом документе: у событий трассы общий clock, документ не важен.
     await this.mark(phase, 'start');
     await this.page.goto(url, { waitUntil: 'domcontentloaded' });
-    const readyAt = await this.page.evaluate(
-      () => (window as unknown as BenchGlobals).__bench.ready
-    );
+    // Харнесс у страниц библиотек появляется синхронно с модулем страницы, а Angular-хост ставит его
+    // после `load` (приложение создаётся асинхронно): ждём его в том же вызове — у страниц, где он уже
+    // есть, это прежний единственный вызов.
+    const readyAt = await this.page.evaluate(async () => {
+      const w = window as unknown as Partial<BenchGlobals>;
+      while (!w.__bench) await new Promise((resolve) => setTimeout(resolve, 10));
+      return w.__bench.ready;
+    });
     await this.page.evaluate(() => (window as unknown as BenchGlobals).__bench.idle());
     await this.mark(phase, 'end');
     const end = await this.cdp.metrics();

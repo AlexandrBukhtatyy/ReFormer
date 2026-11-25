@@ -1,0 +1,37 @@
+{
+  "id": "libraries",
+  "description": "ReFormer против библиотек форм: страницы forms-benchmark/src/libs, участники — forms-benchmark/entries.json.",
+  "participants": null,
+  "order": ["reformer-core", "reformer-json", "formik", "rhf", "rjsf", "baseline"],
+  "reference": "reformer-core",
+  "control": "reformer-core-aa",
+  "controlLabel": "ReFormer core A/A",
+  "labels": {
+    "reformer-core": "ReFormer core",
+    "reformer-json": "ReFormer JSON",
+    "formik": "Formik",
+    "rhf": "RHF",
+    "rjsf": "RJSF",
+    "baseline": "baseline"
+  },
+  "reportLabels": { "baseline": "_baseline_" },
+  "versionKeys": [
+    "@reformer/core",
+    "@reformer/renderer-json",
+    "formik",
+    "yup",
+    "react-hook-form",
+    "@hookform/resolvers",
+    "zod",
+    "@rjsf/core",
+    "@rjsf/validator-ajv8",
+    "react"
+  ],
+  "bundleHidePackages": ["react-dom", "react", "scheduler"],
+  "buildInfo": "build-info.json",
+  "bundleReport": "bundle-report.json",
+  "codeReport": "code-report.json",
+  "resultsSubdir": "",
+  "publishDir": "docs/benchmarks/forms",
+  "siteData": "forms-benchmark"
+}

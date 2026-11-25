@@ -11,7 +11,7 @@
  *
  * Опции: --runs <dir>[,<dir>] (по умолчанию — последний прогон каждой формы), --traces <dir>[,<dir>]
  * (графики трейсов формы — из этого прогона, а не из прогона замеров), --publish (копия в
- * docs/benchmarks/forms/ и данные страницы /benchmark сайта документации — site-data.mjs).
+ * docs/benchmarks/forms/ и данные отчёта /benchmark/forms на сайте — site-data.mjs).
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -39,6 +39,7 @@ import {
 import { DIRTY_SHARE, describeBackgroundFlags, neighbourText } from './background.mjs';
 import { writeSiteData } from './site-data.mjs';
 import { buildKey, readEnv, traceSeries, traceSource } from './traces.mjs';
+import { ranked, reportLabels, suite } from './suite.mjs';
 
 const appDist = path.resolve(e2eDir, '../forms-benchmark/dist');
 const repoRoot = path.resolve(e2eDir, '../..');
@@ -115,12 +116,13 @@ for (const f of forms) {
   );
 }
 
-const bundle = existsSync(path.join(appDist, 'bundle-report.json'))
-  ? JSON.parse(readFileSync(path.join(appDist, 'bundle-report.json'), 'utf8'))
-  : null;
-const code = existsSync(path.join(appDist, 'code-report.json'))
-  ? JSON.parse(readFileSync(path.join(appDist, 'code-report.json'), 'utf8'))
-  : null;
+// Размеры бандла и объём кода — отчёты сборки страниц набора (suites/<id>.json).
+const readReport = (name) =>
+  existsSync(path.join(appDist, name))
+    ? JSON.parse(readFileSync(path.join(appDist, name), 'utf8'))
+    : null;
+const bundle = readReport(suite.bundleReport);
+const code = readReport(suite.codeReport);
 
 const summary = {
   generatedAt: new Date().toISOString(),
@@ -138,16 +140,13 @@ function formatCalls(calls) {
 }
 
 // ── Markdown ─────────────────────────────────────────────────────────────────
-const LABELS = {
-  'reformer-core': 'ReFormer core',
-  'reformer-json': 'ReFormer JSON',
-  formik: 'Formik',
-  rhf: 'RHF',
-  rjsf: 'RJSF',
-  baseline: '_baseline_',
-};
+/** Подписи участников в таблицах (у набора библиотек baseline — курсивом). */
+const LABELS = reportLabels();
 /** Подписи участников в калибровке: там есть и A/A-копия — она тоже занимает место в порядке. */
-const calLabel = (lib) => (lib === CONTROL ? 'ReFormer core A/A' : (LABELS[lib] ?? lib));
+const calLabel = (lib) => (lib === CONTROL ? suite.controlLabel : (LABELS[lib] ?? lib));
+/** Пояснения под фазами и строки «Итога»: свои у набора, иначе — набора библиотек (metrics.mjs). */
+const PHASE_NOTES = suite.notes ?? NOTES;
+const HEADLINES = suite.headline ?? HEADLINE;
 const FORM_TITLES = { registration: 'регистрация с капчей', credit: 'кредитная заявка' };
 
 function fmt(v, unit) {
@@ -173,6 +172,8 @@ function cell(row, lib) {
   if (!c) return '—';
   const value = fmt(c.median, row.unit);
   if (lib === 'baseline') return `_${value}_`;
+  // Без ранжирования (набор frameworks) — только медиана: ни отношения к лучшему, ни выделения.
+  if (!ranked()) return value;
   const ratio = c.ratio !== null && Number.isFinite(c.ratio) ? ` ×${c.ratio.toFixed(2)}` : '';
   const text = `${value}${ratio}${marker(row, lib)}`;
   return lib === row.best ? `**${text}**` : text;
@@ -182,7 +183,7 @@ const lines = [];
 const push = (...l) => lines.push(...l);
 const envFirst = forms[0].env;
 push(
-  '# Бенчмарк форм: ReFormer против Formik, React Hook Form и RJSF',
+  `# ${suite.report?.title ?? 'Бенчмарк форм: ReFormer против Formik, React Hook Form и RJSF'}`,
   '',
   `Сформирован ${summary.generatedAt.slice(0, 16).replace('T', ' ')} UTC по прогонам: ${summary.runs.map((r) => `\`${r}\``).join(', ')}.`,
   '',
@@ -196,31 +197,24 @@ push(
 const versions = envFirst.build?.versions ?? {};
 push(
   '**Версии:** ' +
-    [
-      '@reformer/core',
-      '@reformer/renderer-json',
-      'formik',
-      'yup',
-      'react-hook-form',
-      '@hookform/resolvers',
-      'zod',
-      '@rjsf/core',
-      '@rjsf/validator-ajv8',
-      'react',
-    ]
+    suite.versionKeys
       .filter((p) => versions[p])
       .map((p) => `${p} ${versions[p]}`)
       .join(', ') +
     '.',
   '',
   '## Как читать',
-  '',
-  '- Ячейка — **медиана по прогонам** (каждый прогон сначала свёрнут: например, медиана задержки по всем клавишам фазы). Меньше — лучше.',
-  '- `×1.42` — во сколько раз хуже лучшего участника в строке; лучший выделен **жирным**.',
-  '- `▲` / `▼` — значимо хуже / лучше ReFormer core: точный Mann–Whitney U (перестановочное распределение), поправка Holm по всем сравнениям отчёта, p < 0.05, и разница больше шума A/A (две одинаковые сборки ReFormer core). Без значка — различие не доказано.',
-  '- _baseline_ — та же разметка без библиотеки форм: нижняя граница стоимости.',
-  '- Числа — сырые миллисекунды этой сессии, без нормировки. Скорость машины в сессии и её дрейф — раздел «Калибровка скорости машины»; сравнение с отчётом другой сессии — `npm run bench:compare`.',
-  '- Методика и правила честности: `projects/forms-benchmark/BENCH-CONTRACT.md`; поведение всех реализаций проверено conformance-тестами до замеров.',
+  ''
+);
+push(
+  ...(suite.report?.howToRead ?? [
+    '- Ячейка — **медиана по прогонам** (каждый прогон сначала свёрнут: например, медиана задержки по всем клавишам фазы). Меньше — лучше.',
+    '- `×1.42` — во сколько раз хуже лучшего участника в строке; лучший выделен **жирным**.',
+    '- `▲` / `▼` — значимо хуже / лучше ReFormer core: точный Mann–Whitney U (перестановочное распределение), поправка Holm по всем сравнениям отчёта, p < 0.05, и разница больше шума A/A (две одинаковые сборки ReFormer core). Без значка — различие не доказано.',
+    '- _baseline_ — та же разметка без библиотеки форм: нижняя граница стоимости.',
+    '- Числа — сырые миллисекунды этой сессии, без нормировки. Скорость машины в сессии и её дрейф — раздел «Калибровка скорости машины»; сравнение с отчётом другой сессии — `npm run bench:compare`.',
+    '- Методика и правила честности: `projects/forms-benchmark/BENCH-CONTRACT.md`; поведение всех реализаций проверено conformance-тестами до замеров.',
+  ]),
   ''
 );
 
@@ -256,7 +250,7 @@ for (const f of forms) {
     );
   for (const cpu of f.cpus) {
     push(`### Итог, CPU ${cpu}x`, '', header, sep);
-    for (const h of HEADLINE[f.form] ?? []) {
+    for (const h of HEADLINES[f.form] ?? []) {
       const section = f.sections.find((s) => s.cpu === cpu && s.phase === h.phase);
       const row = section?.rows.find((r) => r.metric === h.metric);
       if (!row) continue;
@@ -289,7 +283,7 @@ for (const f of forms) {
           `_Запросы к API за фазу различаются (часть работы перенесена в другую фазу): ${list.join('; ')}._`
         );
       }
-      for (const note of NOTES[f.form]?.[section.phase] ?? []) push('', `_${note}_`);
+      for (const note of PHASE_NOTES[f.form]?.[section.phase] ?? []) push('', `_${note}_`);
       push('');
     }
   }
@@ -322,7 +316,8 @@ if (bundle) {
   push(
     '## Размер бандла',
     '',
-    'Отдельная prod-сборка каждой страницы; статическое замыкание входа. Сжатие считается на вход целиком, атрибуция — минифицированные байты по sourcemap.',
+    suite.report?.bundleIntro ??
+      'Отдельная prod-сборка каждой страницы; статическое замыкание входа. Сжатие считается на вход целиком, атрибуция — минифицированные байты по sourcemap.',
     '',
     '| Страница | JS raw, КБ | gzip, КБ | brotli, КБ | gzip сверх baseline, КБ | Крупнейшие пакеты (raw, КБ) |',
     '|---|---:|---:|---:|---:|---|'
@@ -332,7 +327,7 @@ if (bundle) {
     .filter((e) => e.id !== CONTROL)
     .sort((a, b) => byFormOrder(a, b) || order(a) - order(b))) {
     const top = Object.entries(e.packages)
-      .filter(([k]) => !k.startsWith('[') && !['react-dom', 'react', 'scheduler'].includes(k))
+      .filter(([k]) => !k.startsWith('[') && !suite.bundleHidePackages.includes(k))
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([k, v]) => `${k} ${(v / 1024).toFixed(1)}`)
@@ -348,7 +343,8 @@ if (code) {
   push(
     '## Объём кода реализаций',
     '',
-    'Считаются исходники `src/libs/**`, попавшие в бандл страницы (по sourcemap): строки без пустых и комментариев после prettier. «Форма» — файлы каталога формы, «обвязка» — остальной код интеграции библиотеки, который использует страница (адаптеры полей, тема RJSF, общие правила и поведение ReFormer). Общий слой бенчмарка (`src/shared`) одинаков у всех и не считается. JSON-документ кредита у ReFormer JSON сгенерирован один раз из общих метаданных полей; RJSF и ReFormer core строят схемы из тех же метаданных в коде.',
+    suite.report?.codeIntro ??
+      'Считаются исходники `src/libs/**`, попавшие в бандл страницы (по sourcemap): строки без пустых и комментариев после prettier. «Форма» — файлы каталога формы, «обвязка» — остальной код интеграции библиотеки, который использует страница (адаптеры полей, тема RJSF, общие правила и поведение ReFormer). Общий слой бенчмарка (`src/shared`) одинаков у всех и не считается. JSON-документ кредита у ReFormer JSON сгенерирован один раз из общих метаданных полей; RJSF и ReFormer core строят схемы из тех же метаданных в коде.',
     '',
     '| Реализация / форма | Форма TS | Форма JSON | Обвязка TS | Итого строк | Файлов | gzip исходника, Б |',
     '|---|---:|---:|---:|---:|---:|---:|'
@@ -363,15 +359,16 @@ if (code) {
   push('');
 }
 
+push('## Ограничения', '');
 push(
-  '## Ограничения',
-  '',
-  '- Троттлинг CPU в Chromium замедляет только main thread: парсинг и компиляция вне основного потока, GC и растеризация не замедляются — стоимость больших бандлов занижена.',
-  '- «Клавиша → конец кадра» квантуется частотой кадров; для сравнения точнее «клавиша → конец обработки» и CPU-время на клавишу.',
-  '- Одна машина и один браузер; результаты на другом железе отличаются по абсолютным значениям.',
-  '- Фоновая нагрузка на машине (раздел «Фоновая нагрузка») меняет числа сильнее, чем видит калибровка: инференс LLM, чужие браузеры и сборки конкурируют за GPU, память и композитор. Её снимок — только CPU-время процессов и моментальная загрузка GPU в начале и конце прогона; процессы, завершившиеся за прогон, не видны.',
-  '- Абсолютные значения разных сессий напрямую несравнимы даже на одной машине: у baseline (тот же код) они расходились до 1.6× между прогонами одного дня при одинаковой фоновой нагрузке (частота и тепловой режим CPU). Поэтому в начале и в конце каждого прогона идёт калибровочная нагрузка: раздел «Калибровка скорости машины» показывает дрейф внутри сессии, а `npm run bench:compare` сравнивает два отчёта и в сырых миллисекундах, и с нормировкой по калибровке. Нормировка приблизительна: метрики с таймерами, сетью и кадрами зависят от скорости CPU лишь частично, а частота меняет разные виды работы неодинаково. Внутри одного отчёта сравнивайте отношения: участники в прогоне чередуются в перемешанном порядке, поэтому дрейф ложится на всех одинаково.',
-  '- Реализации конкурентов написаны по официальной документации независимо от кода ReFormer; отклонения каждой — в `projects/forms-benchmark/src/libs/<lib>/README.md`.',
+  ...(suite.report?.limitations ?? [
+    '- Троттлинг CPU в Chromium замедляет только main thread: парсинг и компиляция вне основного потока, GC и растеризация не замедляются — стоимость больших бандлов занижена.',
+    '- «Клавиша → конец кадра» квантуется частотой кадров; для сравнения точнее «клавиша → конец обработки» и CPU-время на клавишу.',
+    '- Одна машина и один браузер; результаты на другом железе отличаются по абсолютным значениям.',
+    '- Фоновая нагрузка на машине (раздел «Фоновая нагрузка») меняет числа сильнее, чем видит калибровка: инференс LLM, чужие браузеры и сборки конкурируют за GPU, память и композитор. Её снимок — только CPU-время процессов и моментальная загрузка GPU в начале и конце прогона; процессы, завершившиеся за прогон, не видны.',
+    '- Абсолютные значения разных сессий напрямую несравнимы даже на одной машине: у baseline (тот же код) они расходились до 1.6× между прогонами одного дня при одинаковой фоновой нагрузке (частота и тепловой режим CPU). Поэтому в начале и в конце каждого прогона идёт калибровочная нагрузка: раздел «Калибровка скорости машины» показывает дрейф внутри сессии, а `npm run bench:compare` сравнивает два отчёта и в сырых миллисекундах, и с нормировкой по калибровке. Нормировка приблизительна: метрики с таймерами, сетью и кадрами зависят от скорости CPU лишь частично, а частота меняет разные виды работы неодинаково. Внутри одного отчёта сравнивайте отношения: участники в прогоне чередуются в перемешанном порядке, поэтому дрейф ложится на всех одинаково.',
+    '- Реализации конкурентов написаны по официальной документации независимо от кода ReFormer; отклонения каждой — в `projects/forms-benchmark/src/libs/<lib>/README.md`.',
+  ]),
   ''
 );
 
@@ -537,12 +534,12 @@ writeFileSync(path.join(outDir, 'report.html'), renderHtml(summary, LABELS, trac
 console.log(`отчёт → ${path.relative(process.cwd(), outDir)}/report.md, report.html`);
 
 if (args.includes('--publish')) {
-  const pub = path.join(repoRoot, 'docs/benchmarks/forms');
+  const pub = path.join(repoRoot, suite.publishDir);
   mkdirSync(pub, { recursive: true });
   for (const f of ['report.md', 'report.html', 'summary.json'])
     copyFileSync(path.join(outDir, f), path.join(pub, f));
   console.log(`опубликовано → ${path.relative(process.cwd(), pub)}`);
-  // Сайт берёт опубликованный summary.json: страница /benchmark и лендинг всегда совпадают с отчётом.
+  // Сайт берёт опубликованный summary.json: /benchmark/forms и лендинг всегда совпадают с отчётом.
   const published = JSON.parse(readFileSync(path.join(pub, 'summary.json'), 'utf8'));
   // Графики трейсов на сайте — только когда трассы есть (прогон с BENCH_TRACE или `--traces`);
   // иначе файл трейсов сайта не трогается.

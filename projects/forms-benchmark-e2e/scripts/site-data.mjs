@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Данные бенчмарка для сайта документации: summary.json отчёта → компактные JSON в
- * projects/reformer-doc/src/data/. Страница /benchmark берёт полный файл, лендинг — сводный: в нём
- * только строки «Итога» и бандл, чтобы главная страница не тянула все фазы.
+ * projects/reformer-doc/src/data/. Отчёт /benchmark/forms берёт полный файл, лендинг — сводный:
+ * в нём только строки «Итога» и бандл, чтобы главная страница не тянула все фазы.
  *
  * Сайт показывает то же, что отчёт: медиану, IQR, отношение к лучшему и значок значимости против
  * ReFormer core (его ставит report.mjs). Сырые прогоны, p-значения и CI сюда не попадают.
@@ -25,40 +25,28 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { HEADLINE, NOTES } from './metrics.mjs';
 import { resolveRuns } from './aggregate.mjs';
 import { readEnv, thinSeries, traceSeries, traceSource } from './traces.mjs';
+import { ranked, suite } from './suite.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../../..');
-export const DEFAULT_SUMMARY = path.join(repoRoot, 'docs/benchmarks/forms/summary.json');
+/** Опубликованный отчёт набора (suites/<id>.json → publishDir). */
+export const DEFAULT_SUMMARY = path.join(repoRoot, suite.publishDir, 'summary.json');
 export const DEFAULT_OUT = path.join(repoRoot, 'projects/reformer-doc/src/data');
 const ENTRIES = path.join(repoRoot, 'projects/forms-benchmark/entries.json');
 
 /** Версия формата файлов: страница сверяет её и не рисует данные чужого формата. */
 export const SITE_DATA_SCHEMA = 1;
 
-const LIB_ORDER = ['reformer-core', 'reformer-json', 'formik', 'rhf', 'rjsf', 'baseline'];
-const CONTROL = 'reformer-core-aa';
+// Участники, их подписи и версии — из набора (suites/<id>.json).
+const LIB_ORDER = suite.order;
+const CONTROL = suite.control;
 /** Короткие подписи — как в таблицах отчёта (report.mjs). */
-const LABELS = {
-  'reformer-core': 'ReFormer core',
-  'reformer-json': 'ReFormer JSON',
-  formik: 'Formik',
-  rhf: 'RHF',
-  rjsf: 'RJSF',
-  baseline: 'baseline',
-};
+const LABELS = suite.labels;
 const FORM_TITLES = { registration: 'регистрация с капчей', credit: 'кредитная заявка' };
-const VERSION_KEYS = [
-  '@reformer/core',
-  '@reformer/renderer-json',
-  'formik',
-  'yup',
-  'react-hook-form',
-  '@hookform/resolvers',
-  'zod',
-  '@rjsf/core',
-  '@rjsf/validator-ajv8',
-  'react',
-];
+const VERSION_KEYS = suite.versionKeys;
+/** Пояснения под фазами и строки «Итога»: свои у набора, иначе — набора библиотек (metrics.mjs). */
+const PHASE_NOTES = suite.notes ?? NOTES;
+const HEADLINES = suite.headline ?? HEADLINE;
 
 /** Форматирование чисел отчёта (report.mjs → fmt): сайт показывает их так же. */
 function fmt(v, unit) {
@@ -93,6 +81,10 @@ const share = (v) => stable(v, (x) => (x * 100).toFixed(1));
 const markerToSig = (m) => (m === '▲' ? 1 : m === '▼' ? -1 : 0);
 
 function participants() {
+  // Участники набора описаны в нём самом; у набора библиотек — в манифесте страниц бенчмарка.
+  if (suite.participants) {
+    return suite.participants.map(({ id, label, role, stack }) => ({ id, label, role, stack }));
+  }
   const manifest = existsSync(ENTRIES) ? JSON.parse(readFileSync(ENTRIES, 'utf8')) : null;
   return LIB_ORDER.map((id) => {
     const e = manifest?.entries.find((x) => x.id === id);
@@ -139,7 +131,8 @@ const cellOf = (c, unit) => [
   sig(c.median, unit),
   sig(c.q25, unit),
   sig(c.q75, unit),
-  fixed(c.ratio, 2),
+  // Без ранжирования (набор frameworks) — ни отношения к лучшему, ни значимости.
+  ranked() ? fixed(c.ratio, 2) : null,
   markerToSig(c.marker),
 ];
 
@@ -148,7 +141,7 @@ function rowOf(r, libs) {
   for (const lib of libs) if (r.cells[lib]) cells[lib] = cellOf(r.cells[lib], r.unit);
   return {
     id: r.metric,
-    best: r.best,
+    best: ranked() ? r.best : null,
     noisy: Object.values(r.cells).some((c) => c.cv !== null && c.cv > 0.15),
     cells,
   };
@@ -209,10 +202,10 @@ function formOf(f) {
       title: s.title,
       kind: s.kind,
       rows: s.rows.map((r) => rowOf(r, libs)),
-      notes: NOTES[f.form]?.[s.phase] ?? [],
+      notes: PHASE_NOTES[f.form]?.[s.phase] ?? [],
       apiCalls: s.apiCalls ?? null,
     }));
-  const headline = (HEADLINE[f.form] ?? []).filter((h) =>
+  const headline = (HEADLINES[f.form] ?? []).filter((h) =>
     sections.some((s) => s.id === h.phase && s.rows.some((r) => r.id === h.metric))
   );
   return {
@@ -257,7 +250,7 @@ function bundleOf(bundle) {
       brotli: fixed(e.js.brotli / 1024, 1),
       overBaselineGzip: e.overBaseline ? fixed(e.overBaseline.gzip / 1024, 1) : null,
       top: Object.entries(e.packages)
-        .filter(([k]) => !k.startsWith('[') && !['react-dom', 'react', 'scheduler'].includes(k))
+        .filter(([k]) => !k.startsWith('[') && !suite.bundleHidePackages.includes(k))
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
         .map(([k, v]) => [k, fixed(v / 1024, 1)]),
@@ -284,7 +277,7 @@ function codeOf(code) {
   return out;
 }
 
-/** Полные данные страницы /benchmark. */
+/** Полные данные страницы /benchmark/forms. */
 export function buildSiteData(summary) {
   const forms = summary.forms.map(formOf);
   const cpu = Math.max(...forms.map((f) => f.cpu));
@@ -362,8 +355,8 @@ export function stringifyCompact(value, indent = '') {
 const isPair = (v) => Array.isArray(v) && v.every((x) => x === null || typeof x !== 'object');
 
 /** Файл графиков трейсов: страница грузит его отдельным чанком. */
-export const TRACES_FILE = 'forms-benchmark-traces.json';
-/** Выше — предупреждение: файл едет в чанк страницы /benchmark. */
+export const TRACES_FILE = `${suite.siteData}-traces.json`;
+/** Выше — предупреждение: файл едет в чанк страницы /benchmark/forms. */
 const TRACES_WARN_BYTES = 120 * 1024;
 
 /**
@@ -396,8 +389,8 @@ export function writeSiteData(summary, outDir = DEFAULT_OUT, traceEntries = []) 
   const headline = buildHeadlineData(full);
   mkdirSync(outDir, { recursive: true });
   const files = [
-    [path.join(outDir, 'forms-benchmark.json'), full],
-    [path.join(outDir, 'forms-benchmark-headline.json'), headline],
+    [path.join(outDir, `${suite.siteData}.json`), full],
+    [path.join(outDir, `${suite.siteData}-headline.json`), headline],
   ];
   if (traceEntries.length)
     files.push([path.join(outDir, TRACES_FILE), buildTraceData(summary, traceEntries)]);

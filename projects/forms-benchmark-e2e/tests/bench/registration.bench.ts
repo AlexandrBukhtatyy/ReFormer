@@ -45,6 +45,17 @@ function expectKeys(phase: string, actual: Record<string, string>, expected: str
 const errorsGate = (s: BenchSession, phase: string, expected: string[]) => async () =>
   expectKeys(phase, await shownErrors(s), expected);
 
+/**
+ * Переход к следующему полю. У страниц бенчмарка — Tab: поля идут подряд. У китов между полями
+ * бывают свои элементы в порядке Tab (кнопка показа пароля ui-kit), поэтому поле фокусируется
+ * `locator.focus()` — как в сценарии кредита; пауза та же, что после Tab.
+ */
+async function toField(s: BenchSession, id: string, cadence: number): Promise<void> {
+  if (s.info.lib.markup !== 'kit') return s.press('Tab', cadence);
+  await s.page.getByTestId(`input-${id}`).focus();
+  await new Promise((resolve) => setTimeout(resolve, cadence));
+}
+
 async function registrationFlow(s: BenchSession): Promise<void> {
   const { cadenceMs: cadence, remounts } = benchConfig;
   const baseline = s.info.lib.role === 'baseline';
@@ -59,7 +70,7 @@ async function registrationFlow(s: BenchSession): Promise<void> {
     async () => {
       await s.click(at['input-username']);
       await s.type(VALID.username, cadence);
-      await s.press('Tab', cadence);
+      await toField(s, 'email', cadence);
       await s.type(VALID.email, cadence);
     },
     baseline ? undefined : errorsGate(s, 'typing-pristine', [])
@@ -88,11 +99,11 @@ async function registrationFlow(s: BenchSession): Promise<void> {
     async () => {
       await s.click(at['input-password']);
       await s.type(VALID.password, cadence);
-      await s.press('Tab', cadence);
+      await toField(s, 'confirmPassword', cadence);
       await s.type(VALID.confirmPassword, cadence);
-      await s.press('Tab', cadence);
+      await toField(s, 'fullName', cadence);
       await s.type(VALID.fullName, cadence);
-      await s.press('Tab', cadence);
+      await toField(s, 'phone', cadence);
       await s.type(VALID.phoneDigits, cadence);
     },
     baseline ? undefined : errorsGate(s, 'typing-live', ['captcha', 'acceptTerms'])
@@ -269,7 +280,10 @@ test('регистрация: профилирование всех участн
     }
   }
   if (benchConfig.renders) {
-    for (const lib of libs) await runOnce(browser, url, writer, lib, 1, 'renders', 0, false);
+    // Счётчик рендеров — только у участников, где он есть (хук React DevTools).
+    for (const lib of libs.filter((l) => l.renders !== false)) {
+      await runOnce(browser, url, writer, lib, 1, 'renders', 0, false);
+    }
   }
   if (benchConfig.trace) {
     for (const lib of libs) {

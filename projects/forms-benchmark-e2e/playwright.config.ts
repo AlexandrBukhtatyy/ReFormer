@@ -10,6 +10,7 @@
  * (`npm run bench:build -w forms-benchmark`), сервер — его scripts/serve.mjs.
  */
 import { defineConfig } from '@playwright/test';
+import { SUITE_ID, suite } from './lib/suite';
 
 const PORT = Number(process.env.BENCH_PORT ?? 4180);
 
@@ -53,7 +54,12 @@ export default defineConfig({
       name: 'bench',
       testDir: './tests/bench',
       testMatch: '**/*.bench.ts',
-      dependencies: process.env.BENCH_NO_DEPS === '1' ? [] : ['conformance', 'calibration'],
+      // Набор стеков (BENCH_SUITE=frameworks): паритет — сценарии кросс-e2e на тех же prod-сборках
+      // (npm run bench:frameworks из корня открытой части), счётчика рендеров нет — зависимостей нет.
+      dependencies:
+        process.env.BENCH_NO_DEPS === '1' || SUITE_ID !== 'libraries'
+          ? []
+          : ['conformance', 'calibration'],
       // Один тест на форму идёт десятки минут; прогоны пишутся по ходу, сбой прогона ловится.
       timeout: 0,
     },
@@ -61,7 +67,7 @@ export default defineConfig({
   webServer: {
     command: 'npm run serve',
     cwd: '../forms-benchmark',
-    url: `http://127.0.0.1:${PORT}/build-info.json`,
+    url: `http://127.0.0.1:${PORT}/${suite.buildInfo}`,
     reuseExistingServer: !process.env.CI,
     env: { PORT: String(PORT) },
     timeout: 30_000,

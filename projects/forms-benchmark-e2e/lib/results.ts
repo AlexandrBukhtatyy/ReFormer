@@ -16,12 +16,18 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import type { Browser } from '@playwright/test';
 import { buildInfo } from './participants';
+import { SUITE_ID, suite } from './suite';
 import type { BenchConfig } from './config';
 import { CALIBRATION, calibrationValue, type CalibrationRecord } from './calibration';
 import { BACKGROUND_THRESHOLDS, type BackgroundSample } from './background';
 import { median, round } from './stats';
 
-export const RESULTS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../results');
+/** Прогоны набора: `results/` у набора библиотек, `results/<набор>/` у остальных (suites/<id>.json). */
+export const RESULTS_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../results',
+  suite.resultsSubdir
+);
 
 function shortSha(): string {
   try {
@@ -67,6 +73,7 @@ export class ResultsWriter {
     const cpus = os.cpus();
     const env = {
       runId: this.runId,
+      suite: SUITE_ID,
       form,
       startedAt: new Date().toISOString(),
       machine: {

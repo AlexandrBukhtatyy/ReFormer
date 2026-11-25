@@ -5,19 +5,22 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, mannWhitney, ratioCI } from './stats.mjs';
 import { METRICS, PHASES } from './metrics.mjs';
 import { analyzeCalibration } from './calibration.mjs';
 import { analyzeBackground } from './background.mjs';
+import { e2eDir, suite } from './suite.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-export const e2eDir = path.resolve(here, '..');
-export const resultsDir = path.join(e2eDir, 'results');
+export { e2eDir };
+/** Прогоны набора: `results/` у `libraries`, `results/<набор>/` у остальных (suite.mjs). */
+export const resultsDir = path.join(e2eDir, 'results', suite.resultsSubdir ?? '');
 
-export const LIB_ORDER = ['reformer-core', 'reformer-json', 'formik', 'rhf', 'rjsf', 'baseline'];
-export const COMPARE_TO = 'reformer-core';
-export const CONTROL = 'reformer-core-aa';
+/** Порядок участников, опора сравнения и A/A-контроль — из набора (suites/<id>.json). */
+export const LIB_ORDER = suite.order;
+export const COMPARE_TO = suite.reference;
+export const CONTROL = suite.control;
+/** Участники прогона вместе с A/A-контролем, если он у набора есть. */
+const withControl = (libs) => (CONTROL ? [...libs, CONTROL] : libs);
 
 export const readNdjson = (file) =>
   existsSync(file)
@@ -67,7 +70,7 @@ export function aggregate(runDirs) {
     const cpus = [...new Set(phases.filter((p) => p.mode === 'timing').map((p) => p.cpu))].sort();
 
     const failures = runLog.filter((r) => !r.ok);
-    const calibration = analyzeCalibration(runLog, [...libs, CONTROL]);
+    const calibration = analyzeCalibration(runLog, withControl(libs));
     const background = analyzeBackground(runLog, env);
     const formOut = {
       form,
@@ -88,7 +91,7 @@ export function aggregate(runDirs) {
         const section = { cpu, phase: phase.id, title: phase.title, kind: phase.kind, rows: [] };
         for (const metric of metrics) {
           const values = {};
-          for (const lib of [...libs, CONTROL]) {
+          for (const lib of withControl(libs)) {
             values[lib] = phases
               .filter(
                 (p) => p.mode === 'timing' && p.cpu === cpu && p.phase === phase.id && p.lib === lib
@@ -128,7 +131,11 @@ export function aggregate(runDirs) {
           }
           // Шум A/A: насколько расходятся две одинаковые сборки ReFormer core.
           const noise =
-            stats[CONTROL]?.n && stats[COMPARE_TO]?.n && stats[COMPARE_TO].median
+            CONTROL &&
+            COMPARE_TO &&
+            stats[CONTROL]?.n &&
+            stats[COMPARE_TO]?.n &&
+            stats[COMPARE_TO].median
               ? Math.abs(Math.log(stats[CONTROL].median / stats[COMPARE_TO].median))
               : null;
           const row = {
@@ -139,7 +146,7 @@ export function aggregate(runDirs) {
             noise,
             cells,
           };
-          if (!metric.absolute && values[COMPARE_TO]?.length) {
+          if (COMPARE_TO && !metric.absolute && values[COMPARE_TO]?.length) {
             for (const lib of contenders.filter((l) => l !== COMPARE_TO)) {
               const p = mannWhitney(values[lib], values[COMPARE_TO]);
               const ref = { form, cpu, phase: phase.id, metric: metric.id, lib, p, adj: null };

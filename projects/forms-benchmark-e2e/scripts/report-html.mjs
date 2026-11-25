@@ -13,6 +13,7 @@ import { FORM_ABOUT, FORM_ORDER, HEADLINE, NOTES } from './metrics.mjs';
 import { DRIFT_THRESHOLD, RUN_DRIFT_SHARE, describeFlags, pct, pctAbs } from './calibration.mjs';
 import { DIRTY_SHARE, describeBackgroundFlags, neighbourText } from './background.mjs';
 import { TRACE_CSS, TRACE_SCRIPT, traceSection } from './traces-html.mjs';
+import { ranked, suite } from './suite.mjs';
 
 const esc = (s) =>
   String(s).replace(
@@ -27,8 +28,13 @@ function fmt(v, unit) {
   return Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2);
 }
 
+/** Роль участника: у набора со своими участниками — из его описания (suites/<id>.json). */
 const roleOf = (lib) =>
-  lib.startsWith('reformer') ? 'subject' : lib === 'baseline' ? 'baseline' : 'competitor';
+  suite.participants?.find((p) => p.id === lib)?.role ??
+  (lib.startsWith('reformer') ? 'subject' : lib === 'baseline' ? 'baseline' : 'competitor');
+/** Пояснения под фазами и строки «Итога»: свои у набора, иначе — набора библиотек (metrics.mjs). */
+const PHASE_NOTES = suite.notes ?? NOTES;
+const HEADLINES = suite.headline ?? HEADLINE;
 
 /** Горизонтальный бар-чарт: rows = [{ lib, label, value, lo, hi, tip, note }]. */
 function barChart({ title, unit, rows }) {
@@ -91,10 +97,12 @@ function statsTip(lib, label, c, unit, row) {
     ref?.adj !== undefined && ref?.adj !== null
       ? `; p(Holm) против ReFormer core = ${ref.adj.toFixed(3)}`
       : '';
-  const ratio = c.ratio && Number.isFinite(c.ratio) ? `; ×${c.ratio.toFixed(2)} к лучшему` : '';
-  const ci = c.ratioCI ? ` [95% CI ${c.ratioCI[0].toFixed(2)}–${c.ratioCI[1].toFixed(2)}]` : '';
+  const ratio =
+    ranked() && c.ratio && Number.isFinite(c.ratio) ? `; ×${c.ratio.toFixed(2)} к лучшему` : '';
+  const ci =
+    ranked() && c.ratioCI ? ` [95% CI ${c.ratioCI[0].toFixed(2)}–${c.ratioCI[1].toFixed(2)}]` : '';
   const cv = c.cv !== null ? `; CV ${(c.cv * 100).toFixed(0)}%` : '';
-  return `${label}: медиана ${fmt(c.median, unit)} ${unit}; IQR ${fmt(c.q25, unit)}–${fmt(c.q75, unit)}; n=${c.n}${cv}${ratio}${ci}${p}${row.best === lib ? ' — лучший' : ''}`;
+  return `${label}: медиана ${fmt(c.median, unit)} ${unit}; IQR ${fmt(c.q25, unit)}–${fmt(c.q75, unit)}; n=${c.n}${cv}${ratio}${ci}${p}${ranked() && row.best === lib ? ' — лучший' : ''}`;
 }
 
 function metricChart(row, title, libs, labels) {
@@ -110,7 +118,7 @@ function metricChart(row, title, libs, labels) {
         lo: c?.q25 ?? null,
         hi: c?.q75 ?? null,
         note:
-          c && lib !== 'baseline' && c.ratio && Number.isFinite(c.ratio)
+          ranked() && c && lib !== 'baseline' && c.ratio && Number.isFinite(c.ratio)
             ? `×${c.ratio.toFixed(2)}`
             : '',
         tip: c
@@ -139,7 +147,7 @@ function calibrationSection(summary, labels) {
     return out.join('');
   }
   const label = (l) =>
-    (labels[l] ?? (l === 'reformer-core-aa' ? 'ReFormer core A/A' : l)).replace(/_/g, '');
+    (labels[l] ?? (l === suite.control ? suite.controlLabel : l)).replace(/_/g, '');
   const t = pctAbs(DRIFT_THRESHOLD, 0);
   out.push(
     `<p class="muted">В начале и в конце каждого прогона — одна и та же детерминированная JS-нагрузка на пустой странице той же вкладки, под тем же троттлингом, вне окон замера. Её время — мера скорости машины в момент прогона (значение прогона — среднее начала и конца). Числа отчёта ею не нормируются; сравнение отчётов разных сессий с нормировкой — <code>npm run bench:compare</code>. Порог сноски — ${t}: вдвое больше типичного разброса метрик между прогонами (≈ 5 %), при собственном шуме калибровки на тихой машине 1–3 %; дрейф внутри прогона — если порог превышен больше чем в ${pctAbs(RUN_DRIFT_SHARE, 0)} прогонов.</p>`
@@ -321,7 +329,7 @@ export function renderHtml(summary, labels, traces = {}) {
     out.push(traceSection(traces[f.form], labels, FORM_TITLES[f.form] ?? f.form));
     for (const cpu of f.cpus) {
       out.push(`<h3>Ключевые метрики, CPU ${cpu}x</h3><div class="grid">`);
-      for (const h of HEADLINE[f.form] ?? []) {
+      for (const h of HEADLINES[f.form] ?? []) {
         const s = f.sections.find((x) => x.cpu === cpu && x.phase === h.phase);
         const row = s?.rows.find((r) => r.metric === h.metric);
         if (row) out.push(metricChart(row, `${s.title} — ${row.label}`, libs, labels));
@@ -357,7 +365,7 @@ export function renderHtml(summary, labels, traces = {}) {
             `<p class="muted">Запросы к API за фазу различаются (часть работы перенесена в другую фазу): ${esc(list.join('; '))}.</p>`
           );
         }
-        for (const note of NOTES[f.form]?.[s.phase] ?? [])
+        for (const note of PHASE_NOTES[f.form]?.[s.phase] ?? [])
           out.push(`<p class="muted">${esc(note)}</p>`);
       }
       out.push('</details>');
@@ -521,13 +529,18 @@ ${TRACE_CSS}</style>
 </head>
 <body>
 <main>
-<h1>Бенчмарк форм: ReFormer против Formik, React Hook Form и RJSF</h1>
+<h1>${esc(suite.html?.title ?? 'Бенчмарк форм: ReFormer против Formik, React Hook Form и RJSF')}</h1>
 <p class="meta">${meta}<br>Прогоны: ${summary.runs.map((r) => `<code>${esc(r)}</code>`).join(', ')}</p>
 <div class="legend" aria-label="Легенда">
-  <span><span class="swatch" style="background:var(--accent)"></span>ReFormer (core, JSON)</span>
+${
+  suite.html?.legend
+    ? `  <span><span class="swatch" style="background:var(--accent)"></span>${esc(suite.html.legend)}</span>
+  <span>Бар — медиана по прогонам, ус — IQR; меньше — лучше</span>`
+    : `  <span><span class="swatch" style="background:var(--accent)"></span>ReFormer (core, JSON)</span>
   <span><span class="swatch" style="background:var(--rest)"></span>Formik, React Hook Form, RJSF</span>
   <span><span class="swatch" style="border:1.5px dashed var(--rest)"></span>baseline — разметка без библиотеки</span>
-  <span>Бар — медиана по прогонам, ус — IQR; ×N — отношение к лучшему; меньше — лучше; ▲/▼ в таблицах — значимо хуже/лучше ReFormer core (точный Mann–Whitney, Holm, больше шума A/A)</span>
+  <span>Бар — медиана по прогонам, ус — IQR; ×N — отношение к лучшему; меньше — лучше; ▲/▼ в таблицах — значимо хуже/лучше ReFormer core (точный Mann–Whitney, Holm, больше шума A/A)</span>`
+}
 </div>
 ${out.join('\n')}
 <section><h2>Методика</h2><p>Правила честности, контракт поведения и статистика — <code>projects/forms-benchmark/BENCH-CONTRACT.md</code>. Поведение всех реализаций проверено conformance-тестами до замеров; каждая фаза дополнительно проверяется после окна замера. Полные числа, p-значения и доверительные интервалы — в <code>summary.json</code> и <code>report.md</code>.</p></section>

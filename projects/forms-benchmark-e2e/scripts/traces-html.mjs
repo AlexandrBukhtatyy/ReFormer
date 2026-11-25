@@ -9,6 +9,7 @@
  * с перекрестием и подсветка участника — маленький скрипт TRACE_SCRIPT.
  */
 import { TRACE_METRICS } from './traces.mjs';
+import { suite } from './suite.mjs';
 
 const esc = (s) =>
   String(s).replace(
@@ -16,8 +17,14 @@ const esc = (s) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
   );
 
-/** Слот палитры по участнику — за сущностью, не за порядком: фильтр не перекрашивает линии. */
-const SLOT = { 'reformer-core': 1, 'reformer-json': 2, formik: 3, rhf: 4, rjsf: 5 };
+/**
+ * Слот палитры по участнику — за сущностью, не за порядком прогона: фильтр не перекрашивает линии.
+ * Слоты — по порядку набора (suites/<id>.json) без baseline: у набора библиотек это reformer-core 1,
+ * reformer-json 2, formik 3, rhf 4, rjsf 5.
+ */
+const SLOT = Object.fromEntries(
+  suite.order.filter((lib) => lib !== 'baseline').map((lib, i) => [lib, i + 1])
+);
 const colorClass = (lib) => (lib === 'baseline' ? 'c-base' : `c-s${SLOT[lib] ?? 6}`);
 
 // Геометрия графика (единицы viewBox; SVG тянется на ширину колонки).

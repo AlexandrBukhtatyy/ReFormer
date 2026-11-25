@@ -27,6 +27,7 @@ import path from 'node:path';
 import { CONTROL, LIB_ORDER, aggregate, isRunDir, resultsDir } from './aggregate.mjs';
 import { CPU_TIME_METRICS } from './metrics.mjs';
 import { backgroundLine } from './background.mjs';
+import { suite } from './suite.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -47,15 +48,8 @@ if (args.length !== 2 || !['auto', 'calibration', 'baseline', 'none'].includes(n
   process.exit(1);
 }
 
-const LABELS = {
-  'reformer-core': 'ReFormer core',
-  'reformer-json': 'ReFormer JSON',
-  formik: 'Formik',
-  rhf: 'RHF',
-  rjsf: 'RJSF',
-  baseline: 'baseline',
-  [CONTROL]: 'ReFormer core A/A',
-};
+/** Подписи участников — из набора (suites/<id>.json), с A/A-контролем, если он у набора есть. */
+const LABELS = { ...suite.labels, ...(CONTROL ? { [CONTROL]: suite.controlLabel } : {}) };
 const FORM_TITLES = { registration: 'регистрация с капчей', credit: 'кредитная заявка' };
 const label = (lib) => LABELS[lib] ?? lib;
 

@@ -5,17 +5,20 @@
  *
  * Измеряемые фазы — сырой ввод (клик по координатам, клавиши; поле ввода фокусируется
  * `locator.focus()` — одинаковая для всех короткая команда, зато не зависит от сдвигов вёрстки).
- * Даты, select и радио, которые в фазах не меряются, заполняет POM вне окна замера. После каждой
+ * Даты, select и радио, которые в фазах не меряются, заполняет POM вне окна замера. Мастер, массивы
+ * и списки участник ведёт своей разметкой и драйвером (lib/kit.ts): у страниц библиотек — разметка
+ * бенчмарка и нативный `<select>`, у стеков набора `frameworks` — киты. После каждой
  * фазы — проверочные ворота; сбой прогона пишется в runs.ndjson и не останавливает остальные. В
  * начале и в конце прогона — калибровочная нагрузка (lib/calibration.ts) вне фаз.
  */
-import { test, type Browser } from '@playwright/test';
+import { test, type Browser, type Locator } from '@playwright/test';
 import { benchConfig, createShuffler } from '../../lib/config';
 import { participants, type Participant } from '../../lib/participants';
 import { ResultsWriter } from '../../lib/results';
 import { BenchSession, type Mode } from '../../lib/session';
 import { calibrationRecord, type CalibrationSample } from '../../lib/calibration';
 import { preflight, startBackgroundSample } from '../../lib/background';
+import { driverOf, markupOf } from '../../lib/kit';
 import { CreditPage, MORTGAGE, SMS_VALID_CODE, maskDigits } from '../../pom/credit';
 import { toDomPath } from '../../../forms-benchmark/src/shared/domain/credit';
 
@@ -39,14 +42,20 @@ const errorsGate = (s: BenchSession, phase: string, expected: string[]) => async
 };
 
 const stepGate = (s: BenchSession, step: number) => async () => {
-  const current = await s.page.getAttribute('[data-testid="step-current"]', 'data-step');
+  const markup = markupOf(s.info.lib);
+  const current = await markup.currentStep(s.page).getAttribute(markup.stepNumberAttribute);
   if (current !== String(step)) throw new Error(`ожидался шаг ${step}, на экране ${current}`);
 };
 
-const countGate = (s: BenchSession, selector: string, n: number, what: string) => async () => {
-  const count = await s.page.locator(selector).count();
-  if (count !== n) throw new Error(`${what}: ${count}, ожидалось ${n}`);
-};
+/** Строк массива на экране — по разметке участника (у китов единственная строка без «Удалить»). */
+const rowsGate = (s: BenchSession, array: string, n: number) =>
+  countGate(s, markupOf(s.info.lib).rows(s.page, array), n, `строк массива ${array}`);
+
+const countGate =
+  (s: BenchSession, target: string | Locator, n: number, what: string) => async () => {
+    const count = await (typeof target === 'string' ? s.page.locator(target) : target).count();
+    if (count !== n) throw new Error(`${what}: ${count}, ожидалось ${n}`);
+  };
 
 /** Фокус на поле и посимвольный ввод; `clear` — выделить всё перед вводом. */
 async function typeInto(s: BenchSession, path: string, text: string, clear = false): Promise<void> {
@@ -62,7 +71,9 @@ async function next(s: BenchSession, name: string, toStep: number): Promise<void
 
 async function creditFlow(s: BenchSession): Promise<void> {
   const lib = s.info.lib.id;
-  const pom = new CreditPage(s.page, lib);
+  const markup = markupOf(s.info.lib);
+  const driver = driverOf(s.info.lib);
+  const pom = new CreditPage(s.page, lib, driver, markup);
   await s.load('load', `/${lib}/${FORM}/`);
 
   if (s.info.lib.role === 'baseline') {
@@ -85,7 +96,11 @@ async function creditFlow(s: BenchSession): Promise<void> {
   await s.phase(
     'loan-type',
     async () => {
-      await s.page.selectOption('[data-testid="input-loanType"]', 'mortgage');
+      // Нативный `<select>` — один выбор; список кита — открыть панель и выбрать пункт.
+      await driver.select(
+        { page: s.page, id: 'loanType', input: s.page.getByTestId('input-loanType') },
+        'mortgage'
+      );
     },
     countGate(s, '[data-testid="field-propertyValue"]', 1, 'поле стоимости недвижимости')
   );
@@ -144,32 +159,28 @@ async function creditFlow(s: BenchSession): Promise<void> {
   await s.phase(
     'array-toggle-on',
     () => s.click(at['input-hasProperty']),
-    countGate(s, '[data-testid^="btn-remove-properties-"]', 1, 'строк имущества')
+    rowsGate(s, 'properties', 1)
   );
-  at = await s.centers(['btn-add-properties']);
+  const add = await s.centerOf(markup.addButton(s.page, 'properties'));
   await s.phase(
     'array-add',
     async () => {
       // Кнопка «Добавить» под строками и съезжает: первый раз — клик, дальше Enter на ней же.
-      await s.click(at['btn-add-properties']);
+      await s.click(add);
       for (let i = 2; i < ROWS; i++) await s.press('Enter', benchConfig.cadenceMs);
     },
-    countGate(s, '[data-testid^="btn-remove-properties-"]', ROWS, 'строк имущества')
+    rowsGate(s, 'properties', ROWS)
   );
   await s.phase('array-type-last', async () => {
     await typeInto(s, `properties.${ROWS - 1}.description`, 'Garage');
   });
-  at = await s.centers([`btn-remove-properties-${ROWS - 1}`]);
-  await s.phase(
-    'array-remove',
-    () => s.click(at[`btn-remove-properties-${ROWS - 1}`]),
-    countGate(s, '[data-testid^="btn-remove-properties-"]', ROWS - 1, 'строк имущества')
-  );
+  const remove = await s.centerOf(markup.removeButton(s.page, 'properties', ROWS - 1));
+  await s.phase('array-remove', () => s.click(remove), rowsGate(s, 'properties', ROWS - 1));
   at = await s.centers(['input-hasProperty']);
   await s.phase(
     'array-toggle-off',
     () => s.click(at['input-hasProperty']),
-    countGate(s, '[data-testid^="btn-remove-properties-"]', 0, 'строк имущества')
+    rowsGate(s, 'properties', 0)
   );
   await pom.fillStep(5, V);
   await next(s, 'next-5', 6);
@@ -296,7 +307,10 @@ test('кредитная заявка: профилирование всех у�
     }
   }
   if (benchConfig.renders) {
-    for (const lib of libs) await runOnce(browser, url, writer, lib, 1, 'renders', 0, false);
+    // Счётчик рендеров — только у участников, где он есть (хук React DevTools).
+    for (const lib of libs.filter((l) => l.renders !== false)) {
+      await runOnce(browser, url, writer, lib, 1, 'renders', 0, false);
+    }
   }
   if (benchConfig.trace) {
     for (const lib of libs) {
