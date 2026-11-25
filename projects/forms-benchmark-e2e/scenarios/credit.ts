@@ -79,7 +79,7 @@ export function creditScenarios(
       await expect(form.computed('initialPayment')).toHaveCount(0);
       await expect(form.computed('interestRate')).toHaveText('15.5');
       await expect(form.computed('monthlyPayment')).toHaveText('0');
-      await expect(form.prevButton).toBeDisabled();
+      await form.expectNoPrevious();
       await expect(form.nextButton).toBeVisible();
       await expect(form.submitButton).toHaveCount(0);
       expect(await form.errors()).toEqual({});
@@ -89,7 +89,7 @@ export function creditScenarios(
     test('«Далее» на пустом шаге 1: ошибки первых правил, шаг не меняется', async () => {
       await form.goto();
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '1');
+      await form.expectAtStep(1);
       expect(await form.errors()).toEqual(required('loanAmount', 'loanPurpose'));
     });
 
@@ -113,7 +113,7 @@ export function creditScenarios(
       await form.idle();
       expect(await form.errors()).toEqual({});
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '2');
+      await form.expectAtStep(2);
 
       // Шаг 2 снова тихий, хотя на шаге 1 «Далее» уже нажимали.
       await form.set('personalData.birthDate', '2015-01-01');
@@ -135,7 +135,7 @@ export function creditScenarios(
       await form.goToStep(2, CONSUMER);
 
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '2');
+      await form.expectAtStep(2);
       expect(await form.errors()).toEqual(
         required(
           'personalData.lastName',
@@ -156,7 +156,7 @@ export function creditScenarios(
       await form.next();
 
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '3');
+      await form.expectAtStep(3);
       expect(await form.errors()).toEqual(
         required(
           'phoneMain',
@@ -170,7 +170,7 @@ export function creditScenarios(
       await form.next();
 
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '4');
+      await form.expectAtStep(4);
       expect(await form.errors()).toEqual(
         required(...EMPLOYER, 'workExperienceTotal', 'workExperienceCurrent', 'monthlyIncome')
       );
@@ -178,9 +178,9 @@ export function creditScenarios(
       await form.next();
 
       // Шаг 5 по умолчанию валиден.
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '5');
+      await form.expectAtStep(5);
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '6');
+      await form.expectAtStep(6);
       expect(await form.errors()).toEqual({});
 
       await form.submit();
@@ -213,7 +213,7 @@ export function creditScenarios(
       await form.idle();
       for (const f of CAR) await expect(form.error(f)).toHaveCount(0);
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '1');
+      await form.expectAtStep(1);
       for (const f of ['carBrand', 'carModel', 'carYear', 'carPrice']) {
         await expect(form.error(f)).toHaveCount(1);
       }
@@ -285,13 +285,13 @@ export function creditScenarios(
       await expect(form.computed('interestRate')).toHaveText('12');
       await expect(form.computed('monthlyPayment')).toHaveText('49821');
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '1');
+      await form.expectAtStep(1);
       expect(await form.errors()).toEqual(errorsOf({ carYear: 'max' }));
       await form.type('carYear', '2027', { clear: true });
       await form.idle();
       expect(await form.errors()).toEqual({});
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '2');
+      await form.expectAtStep(2);
     });
 
     test('ипотека: взнос — 20 % вверх до рубля, сумма ≤ стоимость − взнос, перепроверка при смене стоимости', async () => {
@@ -302,7 +302,7 @@ export function creditScenarios(
       await form.type('loanAmount', '800002');
       await form.type('loanPurpose', 'Apartment purchase');
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '1');
+      await form.expectAtStep(1);
       expect(await form.errors()).toEqual(errorsOf({ loanAmount: 'maxMortgage' }));
       await form.type('loanAmount', '800001', { clear: true });
       await form.idle();
@@ -316,7 +316,7 @@ export function creditScenarios(
       await form.idle();
       expect(await form.errors()).toEqual({});
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '2');
+      await form.expectAtStep(2);
     });
 
     test('возраст 18–70: правило даты рождения', async () => {
@@ -324,7 +324,7 @@ export function creditScenarios(
       await form.goToStep(2, CONSUMER);
       await form.fillStep(2, withPersonal(CONSUMER, { birthDate: '2010-01-01' }));
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '2');
+      await form.expectAtStep(2);
       expect(await form.errors()).toEqual(errorsOf({ 'personalData.birthDate': 'minAge' }));
       await form.set('personalData.birthDate', '1955-06-15');
       await form.idle();
@@ -335,7 +335,7 @@ export function creditScenarios(
       await expect(form.computed('age')).toHaveText('70');
       expect(await form.errors()).toEqual({});
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '3');
+      await form.expectAtStep(3);
     });
 
     test('контакты: города по региону (кэш клиента), сброс города, адрес проживания, копия email', async () => {
@@ -415,13 +415,13 @@ export function creditScenarios(
       await form.goToStep(4, CONSUMER);
       await form.fillStep(4, { ...CONSUMER, workExperienceTotal: 12, workExperienceCurrent: 24 });
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '4');
+      await form.expectAtStep(4);
       expect(await form.errors()).toEqual(errorsOf({ workExperienceCurrent: 'maxTotal' }));
       await form.type('workExperienceTotal', '36', { clear: true });
       await form.idle();
       expect(await form.errors()).toEqual({});
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '5');
+      await form.expectAtStep(5);
     });
 
     test('платёж ≤ 50 % дохода: правило дохода, перепроверка при смене доп. дохода', async () => {
@@ -437,7 +437,7 @@ export function creditScenarios(
       await expect(form.computed('totalIncome')).toHaveText('100000');
       await expect(form.computed('paymentToIncomeRatio')).toHaveText('90');
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '4');
+      await form.expectAtStep(4);
       expect(await form.errors()).toEqual(errorsOf({ monthlyIncome: 'paymentRatio' }));
 
       await form.type('additionalIncome', '100000');
@@ -450,7 +450,7 @@ export function creditScenarios(
       await form.idle();
       expect(await form.errors()).toEqual({});
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '5');
+      await form.expectAtStep(5);
     });
 
     test('вычисляемые: ФИО, возраст, доход, доля платежа, доход созаемщиков, ставка за имущество', async () => {
@@ -486,7 +486,7 @@ export function creditScenarios(
       await expect(form.computed('paymentToIncomeRatio')).toHaveText('12');
       await form.type('additionalIncomeSource', 'Rent');
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '5');
+      await form.expectAtStep(5);
 
       await expect(form.computed('coBorrowersIncome')).toHaveCount(0);
       await form.set('hasCoBorrower', true);
@@ -502,7 +502,7 @@ export function creditScenarios(
       // Имущество (флаг и строка) снижает ставку на 0.5 — видно на шаге 1.
       await form.set('hasProperty', true);
       for (let s = 5; s > 1; s--) await form.prev();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '1');
+      await form.expectAtStep(1);
       await expect(form.computed('interestRate')).toHaveText('15');
       await expect(form.computed('monthlyPayment')).toHaveText('24243');
     });
@@ -570,7 +570,7 @@ export function creditScenarios(
       await form.type('existingLoans.0.remainingAmount', '200000', { clear: true });
       await form.set('existingLoans.0.maturityDate', '2028-12-31');
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '5');
+      await form.expectAtStep(5);
       expect(await form.errors()).toEqual(
         errorsOf({ 'existingLoans.0.remainingAmount': 'maxAmount' })
       );
@@ -578,7 +578,7 @@ export function creditScenarios(
       await form.idle();
       expect(await form.errors()).toEqual({});
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '6');
+      await form.expectAtStep(6);
     });
 
     test('значения шагов сохраняются при «Назад»/«Далее» (ипотека в Москве: ставка +0.5)', async () => {
@@ -598,7 +598,7 @@ export function creditScenarios(
       // Москва (регистрация) и Казань (проживание); возвраты на шаг кэш не обходят.
       expect((await form.calls()).cities).toBe(2);
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '4');
+      await form.expectAtStep(4);
       expect(await form.errors()).toEqual({});
     });
 
@@ -693,23 +693,23 @@ export function creditScenarios(
       await form.goToStep(4, data);
       await form.fillStep(4, data);
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '5');
+      await form.expectAtStep(5);
       await form.fillStep(5, data);
       await form.prev();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '4');
+      await form.expectAtStep(4);
       await form.set('monthlyIncome', monthlyIncome);
       await form.idle();
       await expect(form.error('monthlyIncome')).toHaveCount(0);
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '5');
+      await form.expectAtStep(5);
       await form.set('hasProperty', false);
       await form.idle();
       await form.next();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '6');
+      await form.expectAtStep(6);
       await form.fillStep(6, data);
       await form.submit();
       await form.idle();
-      await expect(form.stepIndicator).toHaveAttribute('data-step', '4');
+      await form.expectAtStep(4);
       await expect(form.error('monthlyIncome')).toHaveText(msg('monthlyIncome.paymentRatio'));
       expect(await form.submissions()).toHaveLength(0);
     });

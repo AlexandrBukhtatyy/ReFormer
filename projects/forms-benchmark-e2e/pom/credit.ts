@@ -22,6 +22,7 @@ import {
   type CreditInput,
 } from '../../forms-benchmark/src/shared/domain/credit';
 import { nativeDriver, type ControlDriver, type SelectTarget } from './control-driver';
+import { benchMarkup, type FormMarkup } from './form-markup';
 
 export { SMS_VALID_CODE } from '../../forms-benchmark/src/shared/api/credit-fixtures';
 
@@ -228,7 +229,9 @@ export class CreditPage {
     readonly page: Page,
     readonly lib: string,
     /** Как вести список: нативный `<select>` либо панель библиотеки компонентов. */
-    readonly driver: ControlDriver = nativeDriver
+    readonly driver: ControlDriver = nativeDriver,
+    /** Как размечены мастер и массивы: по контракту бенчмарка либо по-своему у кита. */
+    readonly markup: FormMarkup = benchMarkup
   ) {}
 
   // ── Локаторы ──
@@ -253,8 +256,9 @@ export class CreditPage {
     return this.page.getByTestId(`field-${toDomPath(path)}`);
   }
 
+  /** Элемент текущего шага; номер — в атрибуте разметки (`markup.stepNumberAttribute`). */
   get stepIndicator(): Locator {
-    return this.page.getByTestId('step-current');
+    return this.markup.currentStep(this.page);
   }
 
   get nextButton(): Locator {
@@ -262,7 +266,7 @@ export class CreditPage {
   }
 
   get prevButton(): Locator {
-    return this.page.getByTestId('btn-prev');
+    return this.markup.previousButton(this.page);
   }
 
   get submitButton(): Locator {
@@ -274,16 +278,16 @@ export class CreditPage {
   }
 
   addButton(array: CreditArrayKey): Locator {
-    return this.page.getByTestId(`btn-add-${array}`);
+    return this.markup.addButton(this.page, array);
   }
 
   removeButton(array: CreditArrayKey, index: number): Locator {
-    return this.page.getByTestId(`btn-remove-${array}-${index}`);
+    return this.markup.removeButton(this.page, array, index);
   }
 
-  /** Строки массива на экране — по кнопкам «Удалить». */
+  /** Строки массива на экране. */
   rows(array: CreditArrayKey): Locator {
-    return this.page.locator(`[data-testid^="btn-remove-${array}-"]`);
+    return this.markup.rows(this.page, array);
   }
 
   // ── Страница и __bench ──
@@ -324,9 +328,19 @@ export class CreditPage {
     });
   }
 
-  /** Номер текущего шага (`data-step`). */
+  /** Номер текущего шага. */
   async step(): Promise<number> {
-    return Number(await this.stepIndicator.getAttribute('data-step'));
+    return Number(await this.stepIndicator.getAttribute(this.markup.stepNumberAttribute));
+  }
+
+  /** Форма на шаге `n` (с единицы). */
+  async expectAtStep(n: number): Promise<void> {
+    await expect(this.stepIndicator).toHaveAttribute(this.markup.stepNumberAttribute, String(n));
+  }
+
+  /** На первом шаге назад не уйти: кнопка «Назад» выключена либо её нет. */
+  expectNoPrevious(): Promise<void> {
+    return this.markup.expectNoPrevious(this.page);
   }
 
   /** Список поля `path` — для драйвера контролов. */
@@ -465,7 +479,7 @@ export class CreditPage {
    * столько строк, сколько в `v`. Скопированный `emailAdditional` — равен `email`.
    */
   async expectStep(n: number, v: CreditInput): Promise<void> {
-    await expect(this.stepIndicator).toHaveAttribute('data-step', String(n));
+    await this.expectAtStep(n);
     const arrays = new Set<CreditArrayKey>();
     for (const path of CREDIT_STEPS[n - 1].fields) {
       if (path.includes('[]')) {
