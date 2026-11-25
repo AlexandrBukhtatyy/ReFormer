@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "meta": {
-    "generatedAt": "2026-11-25T16:36:53.347Z",
-    "runs": ["2026-11-25T13-46-34Z_registration_dc4d67c","2026-11-25T12-54-22Z_credit_dc4d67c"],
+    "generatedAt": "2026-11-25T19:12:43.891Z",
+    "runs": ["2026-11-25T18-50-50Z_registration_802946e","2026-11-25T18-06-44Z_credit_802946e"],
     "machine": {
       "cpu": "11th Gen Intel(R) Core(TM) i7-11700 @ 2.50GHz",
       "cores": 16,
@@ -16,8 +16,8 @@
     "warmup": 1,
     "cpuRates": [4],
     "cadenceMs": 80,
-    "seed": 314932795,
-    "git": {"sha":"dc4d67c2","dirty":true},
+    "seed": 333674201,
+    "git": {"sha":"802946e8","dirty":false},
     "versions": {
       "@reformer/core": "6.0.0",
       "@reformer/renderer-json": "6.0.0",
@@ -43,7 +43,7 @@
     {
       "id": "registration",
       "title": "регистрация с капчей",
-      "runId": "2026-11-25T13-46-34Z_registration_dc4d67c",
+      "runId": "2026-11-25T18-50-50Z_registration_802946e",
       "cpu": 4,
       "libs": ["react","vue","angular"],
       "failures": 0,
@@ -95,40 +95,44 @@
             {
               "id": "ready",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [636,529.6,674.2,null,0],
-                "vue": [653.3,601.8,859.1,null,0],
-                "angular": [819.45,741.6,918.6,null,0]
+                "react": [465.8,462.2,481.7,null,0],
+                "vue": [556.8,544.48,574,null,0],
+                "angular": [619.3,611.1,631.9,null,0]
               }
             },
             {
               "id": "fcp",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[354,316,409,null,0],"vue":[626,587,823,null,0],"angular":[774,709,887,null,0]}
+              "noisy": false,
+              "cells": {"react":[274,268,276,null,0],"vue":[534,525,557,null,0],"angular":[598,593,613,null,0]}
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[387,346.5,419,null,0],"vue":[149,129.1,180.8,null,0],"angular":[377.8,366.1,428.8,null,0]}
+              "noisy": false,
+              "cells": {
+                "react": [293.1,282,307.6,null,0],
+                "vue": [118.5,113.3,125.5,null,0],
+                "angular": [296.6,288.2,298.6,null,0]
+              }
             },
             {
               "id": "tbt",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [316,266.5,337,null,0],
-                "vue": [481.5,432.8,623.3,null,0],
-                "angular": [603.5,544.3,681.3,null,0]
+                "react": [216,203.3,229.3,null,0],
+                "vue": [391.5,382.3,398.5,null,0],
+                "angular": [442.5,436.8,451,null,0]
               }
             },
             {
               "id": "heap",
               "best": null,
               "noisy": false,
-              "cells": {"react":[2991,2991,2992,null,0],"vue":[4348,4348,4348,null,0],"angular":[4682,4682,4682,null,0]}
+              "cells": {"react":[2992,2992,2992,null,0],"vue":[4348,4346,4349,null,0],"angular":[4679,4679,4679,null,0]}
             },
             {
               "id": "nodes",
@@ -148,54 +152,50 @@
             {
               "id": "ready",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [648.8,551.2,800.4,null,0],
-                "vue": [653,546.3,743.8,null,0],
-                "angular": [693.2,654.8,848,null,0]
+                "react": [500.4,486.6,506.4,null,0],
+                "vue": [503.4,499.8,527,null,0],
+                "angular": [617.2,611.48,623.9,null,0]
               }
             },
             {
               "id": "fcp",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[360,297,422,null,0],"vue":[234,216,269,null,0],"angular":[324,308,377,null,0]}
+              "noisy": false,
+              "cells": {"react":[268,260,275,null,0],"vue":[206,204,208,null,0],"angular":[296,289,312,null,0]}
             },
             {
               "id": "hydrate",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [279.1,235.4,342.8,null,0],
-                "vue": [420.1,341.3,471.9,null,0],
-                "angular": [383.8,343.1,460.2,null,0]
+                "react": [216.1,210.6,219.7,null,0],
+                "vue": [311.6,305.4,333.6,null,0],
+                "angular": [333.1,322.1,335.9,null,0]
               }
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [389.3,323.7,469.8,null,0],
-                "vue": [126.3,124.5,142.8,null,0],
-                "angular": [351.9,337.2,435.6,null,0]
+                "react": [290.2,279.7,294.3,null,0],
+                "vue": [110,108.9,114.9,null,0],
+                "angular": [300.3,289.4,312.1,null,0]
               }
             },
             {
               "id": "tbt",
               "best": null,
-              "noisy": true,
-              "cells": {
-                "react": [301.5,248.5,392.8,null,0],
-                "vue": [387.5,299.3,461.5,null,0],
-                "angular": [447,415,582.3,null,0]
-              }
+              "noisy": false,
+              "cells": {"react":[210.5,200.8,217.3,null,0],"vue":[264,259.3,285.3,null,0],"angular":[370.5,356,384,null,0]}
             },
             {
               "id": "heap",
               "best": null,
               "noisy": false,
-              "cells": {"react":[2922,2922,2922,null,0],"vue":[4430,4430,4431,null,0],"angular":[4681,4681,4681,null,0]}
+              "cells": {"react":[2923,2923,2923,null,0],"vue":[4431,4431,4431,null,0],"angular":[4682,4682,4682,null,0]}
             },
             {
               "id": "nodes",
@@ -215,67 +215,63 @@
             {
               "id": "keyProc",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [13.73,10.41,15.85,null,0],
-                "vue": [23.55,22.26,28.77,null,0],
-                "angular": [16.68,13.21,19.9,null,0]
+                "react": [7.45,7.325,7.675,null,0],
+                "vue": [13.8,13.06,14.28,null,0],
+                "angular": [9.1,8.774999999999999,9.338,null,0]
               }
             },
             {
               "id": "keyProcP95",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [21.97,19.56,24.28,null,0],
-                "vue": [39.48,33.49,41.48,null,0],
-                "angular": [27.96,23.87,31.09,null,0]
+                "react": [14.7,13.14,15.49,null,0],
+                "vue": [20.53,19.34,21.41,null,0],
+                "angular": [13.22,12.39,14.41,null,0]
               }
             },
             {
               "id": "keyFrame",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [16.57,12.16,18.65,null,0],
-                "vue": [26.049999999999997,23.89,31.79,null,0],
-                "angular": [19.05,14.85,22.3,null,0]
+                "react": [8.6,8.512,8.813,null,0],
+                "vue": [15.22,14.56,15.81,null,0],
+                "angular": [10.28,9.938,10.53,null,0]
               }
             },
             {
               "id": "scriptPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [4.472,3.36,4.897,null,0],
-                "vue": [2.317,1.9147,2.54,null,0],
-                "angular": [6.076,5.324,7.409,null,0]
+                "react": [2.393,2.339,2.49,null,0],
+                "vue": [1.432,1.41,1.471,null,0],
+                "angular": [3.487,3.437,3.564,null,0]
               }
             },
             {
               "id": "layoutPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [3.053,2.358,3.279,null,0],
-                "vue": [5.464,4.953,5.952,null,0],
-                "angular": [3.265,2.716,3.9,null,0]
+                "react": [1.675,1.583,1.729,null,0],
+                "vue": [3.345,3.2246,3.457,null,0],
+                "angular": [1.9649999999999999,1.95,1.983,null,0]
               }
             },
             {
               "id": "slowEvents",
               "best": null,
               "noisy": false,
-              "cells": {
-                "react": [141,124.3,145.8,null,0],
-                "vue": [162.5,159.3,164,null,0],
-                "angular": [150.5,142.5,158.3,null,0]
-              }
+              "cells": {"react":[110,104.3,111.8,null,0],"vue":[156,154,156.8,null,0],"angular":[122.5,119.5,125.5,null,0]}
             },
             {
               "id": "tbt",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
             }
           ],
@@ -292,9 +288,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [154.3,112.3,178.6,null,0],
-                "vue": [205.5,150,236.5,null,0],
-                "angular": [193,134.8,205.8,null,0]
+                "react": [81.3,79.33,104.2,null,0],
+                "vue": [109.45,107,122.9,null,0],
+                "angular": [89.35,86.35,90.3,null,0]
               }
             },
             {
@@ -302,9 +298,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [177.2,128.7,194.8,null,0],
-                "vue": [156.1,117.1,185.4,null,0],
-                "angular": [190.2,133.7,203.7,null,0]
+                "react": [89.4,87,110.2,null,0],
+                "vue": [80.9,80.42,82.05000000000001,null,0],
+                "angular": [87.65,85.3,88.9,null,0]
               }
             },
             {
@@ -312,9 +308,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [95.43,71.13,106.2,null,0],
-                "vue": [20.89,15.86,24.02,null,0],
-                "angular": [97.12,69.79,106,null,0]
+                "react": [49.15,46.1,59.95,null,0],
+                "vue": [11.42,10.91,11.85,null,0],
+                "angular": [42.11,41.78,43.66,null,0]
               }
             },
             {
@@ -322,9 +318,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [43.62,31.77,46.8,null,0],
-                "vue": [121.4,66.7,125.6,null,0],
-                "angular": [62.45,42.92,71.26,null,0]
+                "react": [24.27,23.46,28.46,null,0],
+                "vue": [45.42,42.63,49.42,null,0],
+                "angular": [29.52,28.96,30.55,null,0]
               }
             }
           ],
@@ -339,64 +335,64 @@
             {
               "id": "keyProc",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [19.88,15.56,23.36,null,0],
-                "vue": [31.549999999999997,24,33.45,null,0],
-                "angular": [19.17,14.6,21.75,null,0]
+                "react": [11,10.5,11.36,null,0],
+                "vue": [15.6,15.47,15.78,null,0],
+                "angular": [10.2,10.07,10.350000000000001,null,0]
               }
             },
             {
               "id": "keyProcP95",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [38.1,29.75,40.3,null,0],
-                "vue": [60.88,42.24,70.91,null,0],
-                "angular": [35.24,26.71,40.88,null,0]
+                "react": [20.16,19.49,20.59,null,0],
+                "vue": [30.78,28.84,32.11,null,0],
+                "angular": [18.16,17.6,19.13,null,0]
               }
             },
             {
               "id": "keyFrame",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [23.13,17.92,26.32,null,0],
-                "vue": [34.07,25.85,36.73,null,0],
-                "angular": [21.75,16.41,24.31,null,0]
+                "react": [12.18,11.8,12.64,null,0],
+                "vue": [17.1,16.85,17.19,null,0],
+                "angular": [11.38,11.3,11.5,null,0]
               }
             },
             {
               "id": "scriptPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [9.577,6.954,10.41,null,0],
-                "vue": [3.151,2.559,3.481,null,0],
-                "angular": [7.861,6.008,9.002,null,0]
+                "react": [4.756,4.678,4.802,null,0],
+                "vue": [1.769,1.731,1.8,null,0],
+                "angular": [4.149,4.106,4.222,null,0]
               }
             },
             {
               "id": "layoutPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [5.573,4.238,6.096,null,0],
-                "vue": [10.89,8.681,11.79,null,0],
-                "angular": [5.599,3.715,6.23,null,0]
+                "react": [3.093,2.908,3.414,null,0],
+                "vue": [6.182,6.06,6.692,null,0],
+                "angular": [2.744,2.699,2.773,null,0]
               }
             },
             {
               "id": "slowEvents",
               "best": null,
               "noisy": false,
-              "cells": {"react":[174,165.3,182,null,0],"vue":[194,192.5,195.8,null,0],"angular":[183,167.5,185.5,null,0]}
+              "cells": {"react":[156,149,162.8,null,0],"vue":[181.5,176.8,182.8,null,0],"angular":[146,143,150.3,null,0]}
             },
             {
               "id": "tbt",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[0,0,0,null,0],"vue":[12.5,0,39.25,null,0],"angular":[0,0,0,null,0]}
+              "noisy": false,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
             }
           ],
           "notes": [],
@@ -411,26 +407,26 @@
               "id": "settle",
               "best": null,
               "noisy": false,
-              "cells": {"react":[1134,1104,1172,null,0],"vue":[1271,1199,1329,null,0],"angular":[1196,1129,1227,null,0]}
+              "cells": {"react":[1044,1042,1053,null,0],"vue":[1122,1121,1134,null,0],"angular":[1074,1070,1089,null,0]}
             },
             {
               "id": "keyProc",
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [20.63,18.8,21.450000000000003,null,0],
-                "vue": [30.67,23.86,39.550000000000004,null,0],
-                "angular": [21.68,15.3,24.85,null,0]
+                "react": [13.8,12.76,15.19,null,0],
+                "vue": [18.52,17.98,19.59,null,0],
+                "angular": [11.28,10.76,11.75,null,0]
               }
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [66.77,59.56,81.29,null,0],
-                "vue": [32.36,28.46,35.8,null,0],
-                "angular": [84.29,59.92,92.49,null,0]
+                "react": [37.47,36.13,39.47,null,0],
+                "vue": [20.27,19.03,21.17,null,0],
+                "angular": [43.85,41.07,46.448,null,0]
               }
             }
           ],
@@ -446,22 +442,30 @@
               "id": "settle",
               "best": null,
               "noisy": false,
-              "cells": {"react":[1122,1028,1139,null,0],"vue":[1245,1180,1267,null,0],"angular":[353,330.9,372.4,null,0]}
+              "cells": {
+                "react": [987.3,979.9,999.4,null,0],
+                "vue": [1092,1082,1099,null,0],
+                "angular": [311.3,307.9,316.1,null,0]
+              }
             },
             {
               "id": "keyProc",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[18.75,14.6,19.82,null,0],"vue":[27,25.75,29.32,null,0],"angular":[20,13.7,21.63,null,0]}
+              "noisy": false,
+              "cells": {
+                "react": [10.9,10.03,11.67,null,0],
+                "vue": [15.05,14.2,15.67,null,0],
+                "angular": [9.75,9.625,10.1,null,0]
+              }
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [71.44,47.75,80.44,null,0],
-                "vue": [31.23,26.16,32.57,null,0],
-                "angular": [84.39,57.17,89.77,null,0]
+                "react": [32.62,32.26,34.04,null,0],
+                "vue": [17.12,16.56,17.52,null,0],
+                "angular": [40.23,37.9,41.2,null,0]
               }
             }
           ],
@@ -478,19 +482,19 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [31.65,22.32,38.63,null,0],
-                "vue": [41.75,32.45,48.4,null,0],
-                "angular": [44.35,33,47.85,null,0]
+                "react": [14.5,14.43,14.88,null,0],
+                "vue": [20.55,20,21.5,null,0],
+                "angular": [18.85,17.95,20.22,null,0]
               }
             },
             {
               "id": "settle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [54.75,46.35,59.95,null,0],
-                "vue": [61.7,56.75,70.63,null,0],
-                "angular": [58.75,55.25,63.28,null,0]
+                "react": [42.95,42.52,44.75,null,0],
+                "vue": [49.85,47.75,50.98,null,0],
+                "angular": [38.1,37.5,39.5,null,0]
               }
             },
             {
@@ -498,9 +502,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [8.565,5.9,9.848,null,0],
-                "vue": [4.7,3.828,5.252,null,0],
-                "angular": [10.68,8.185,13.2,null,0]
+                "react": [4.3149999999999995,4.1,4.478,null,0],
+                "vue": [2.675,2.618,3.007,null,0],
+                "angular": [5.245,4.873,5.515000000000001,null,0]
               }
             },
             {
@@ -508,9 +512,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [17.34,13.19,19.76,null,0],
-                "vue": [10.57,9.1,14.82,null,0],
-                "angular": [18.18,16.19,20.04,null,0]
+                "react": [8.935,8.488,9.127,null,0],
+                "vue": [7.12,6.43,7.422,null,0],
+                "angular": [7.95,7.533,8.137,null,0]
               }
             }
           ],
@@ -527,29 +531,29 @@
               "best": null,
               "noisy": false,
               "cells": {
-                "react": [956.4,925.5,982.7,null,0],
-                "vue": [806.1,760,849,null,0],
-                "angular": [609.3,582,627.48,null,0]
+                "react": [884.1,878.4,888.5,null,0],
+                "vue": [647.45,636.1,652.8,null,0],
+                "angular": [528.8,525.4,543.1,null,0]
               }
             },
             {
               "id": "keyProc",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [26.450000000000003,19.8,28.44,null,0],
-                "vue": [53.949999999999996,49.64,62.64,null,0],
-                "angular": [22.95,16.29,26.24,null,0]
+                "react": [16.65,15.91,17.27,null,0],
+                "vue": [29.05,28.75,29.25,null,0],
+                "angular": [11.1,10.41,11.54,null,0]
               }
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [82.86,70.92,88.18,null,0],
-                "vue": [26.93,23.86,32.08,null,0],
-                "angular": [63.34,49.248,73.56,null,0]
+                "react": [45.48,43.52,49.2,null,0],
+                "vue": [16.2,15.73,16.43,null,0],
+                "angular": [32.9,31.99,33.8,null,0]
               }
             }
           ],
@@ -564,41 +568,41 @@
             {
               "id": "clickFrame",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [58.45,37.58,64.2,null,0],
-                "vue": [92.25,74.35,102,null,0],
-                "angular": [79.25,63.23,90.58,null,0]
+                "react": [27.5,26.7,27.68,null,0],
+                "vue": [42.75,41.75,46.77,null,0],
+                "angular": [38.75,37.65,41.67,null,0]
               }
             },
             {
               "id": "settle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [40.35,25.88,43.8,null,0],
-                "vue": [79.25,65.4,84.7,null,0],
-                "angular": [77.2,62.13,87.97,null,0]
+                "react": [20.45,19.7,21.48,null,0],
+                "vue": [38.05,36.75,41.27,null,0],
+                "angular": [37.5,36.52,40.48,null,0]
               }
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [27.13,17.47,29.05,null,0],
-                "vue": [8.495000000000001,5.78,9.395,null,0],
-                "angular": [18.91,15.33,20.652,null,0]
+                "react": [14.09,13.74,14.42,null,0],
+                "vue": [4.43,4.325,4.56,null,0],
+                "angular": [9.695,9.33,10.04,null,0]
               }
             },
             {
               "id": "layout",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [14.53,10.43,15.74,null,0],
-                "vue": [24.49,18.14,25.59,null,0],
-                "angular": [43.08,38.23,52.09,null,0]
+                "react": [8.08,7.795000000000001,8.477,null,0],
+                "vue": [12.79,12.17,14.29,null,0],
+                "angular": [22.54,20.59,23.66,null,0]
               }
             }
           ],
@@ -613,41 +617,41 @@
             {
               "id": "clickFrame",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [44.9,30.95,53.32,null,0],
-                "vue": [39.7,34.55,52.63,null,0],
-                "angular": [39.95,30.77,45.550000000000004,null,0]
+                "react": [23.7,23.27,24.08,null,0],
+                "vue": [22.7,21.3,24.35,null,0],
+                "angular": [19.1,18.35,19.82,null,0]
               }
             },
             {
               "id": "settle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [69.35,63.2,73.5,null,0],
-                "vue": [70.05000000000001,64.58,76.13,null,0],
-                "angular": [61.2,57.05,66.13,null,0]
+                "react": [44.55,42.25,47.15,null,0],
+                "vue": [51.6,49.05,53,null,0],
+                "angular": [45.55,41.15,47.95,null,0]
               }
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [24.39,20.48,32.21,null,0],
-                "vue": [5.33,4.383,6.12,null,0],
-                "angular": [13.75,10.52,16.41,null,0]
+                "react": [13.73,12.95,14.46,null,0],
+                "vue": [3.3049999999999997,3.163,3.723,null,0],
+                "angular": [6.95,6.533,7.52,null,0]
               }
             },
             {
               "id": "layout",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [15.64,13.61,21.78,null,0],
-                "vue": [18.47,15.07,21.48,null,0],
-                "angular": [16.76,13.75,20.54,null,0]
+                "react": [10.5,9.977,11.06,null,0],
+                "vue": [12.54,10.88,13.46,null,0],
+                "angular": [7.875,7.535,8.36,null,0]
               }
             }
           ],
@@ -662,41 +666,41 @@
             {
               "id": "mountSync",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [1.2,0.8625,1.462,null,0],
-                "vue": [4.675,3.725,4.888,null,0],
-                "angular": [13.35,12.56,16.21,null,0]
+                "react": [0.7,0.625,0.7,null,0],
+                "vue": [2.475,2.413,2.737,null,0],
+                "angular": [7.425,7.25,7.574999999999999,null,0]
               }
             },
             {
               "id": "mountReady",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [61.27,38.57,67.88,null,0],
-                "vue": [234.1,214.46,259.9,null,0],
-                "angular": [185.9,176.3,229.7,null,0]
+                "react": [29.3,28.66,30.81,null,0],
+                "vue": [113.3,109.9,116.49,null,0],
+                "angular": [91.63,90.14,94.14,null,0]
               }
             },
             {
               "id": "scriptPerCycle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [39.72,24.81,43.93,null,0],
-                "vue": [1.62,1.39,1.857,null,0],
-                "angular": [99.5,93.75,115.3,null,0]
+                "react": [18.36,17.19,19.34,null,0],
+                "vue": [0.965,0.9075,0.9975,null,0],
+                "angular": [46.55,45.09,47.59,null,0]
               }
             },
             {
               "id": "retainedPerCycle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [3.409,0.8567,3.497,null,0],
-                "vue": [0.36,0.3001,0.4016,null,0],
-                "angular": [1.041,1.036,1.119,null,0]
+                "react": [0.03594,0.03594,0.03594,null,0],
+                "vue": [0.2261,0.2256,0.2266,null,0],
+                "angular": [0.6833,0.6647,0.7024,null,0]
               }
             },
             {
@@ -704,9 +708,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [8.431,6.135,8.432,null,0],
-                "vue": [2.427,2.009,3.132,null,0],
-                "angular": [-3.412,-3.42,-3.394,null,0]
+                "react": [5.37,5.363,5.409,null,0],
+                "vue": [2.019,2.008,2.435,null,0],
+                "angular": [-3.471,-3.606,-3.39,null,0]
               }
             },
             {
@@ -723,19 +727,19 @@
       "renders": [],
       "calibration": {
         "n": 30,
-        "median": 101.3,
-        "spread": 0.3175,
-        "trend": -0.1152,
-        "runDriftMedian": -0.02711,
-        "runDriftMaxAbs": 0.6606,
-        "flags": ["spread","trend","run"]
+        "median": 84.03,
+        "spread": 0.07093,
+        "trend": 0.04056,
+        "runDriftMedian": -0.02459,
+        "runDriftMaxAbs": 0.1171,
+        "flags": []
       },
       "background": null
     },
     {
       "id": "credit",
       "title": "кредитная заявка",
-      "runId": "2026-11-25T12-54-22Z_credit_dc4d67c",
+      "runId": "2026-11-25T18-06-44Z_credit_802946e",
       "cpu": 4,
       "libs": ["react","vue","angular"],
       "failures": 0,
@@ -788,40 +792,44 @@
             {
               "id": "ready",
               "best": null,
-              "noisy": false,
+              "noisy": true,
               "cells": {
-                "react": [612.6,593.5,632.4,null,0],
-                "vue": [650.1,626.8,663.7,null,0],
-                "angular": [753.2,747.48,775.3,null,0]
+                "react": [566.6,554.7,595.8,null,0],
+                "vue": [606.8,593.1,644.6,null,0],
+                "angular": [699.3,685.9,720.3,null,0]
               }
             },
             {
               "id": "fcp",
               "best": null,
-              "noisy": false,
-              "cells": {"react":[340,333,347,null,0],"vue":[664,640,678,null,0],"angular":[762,747,782,null,0]}
+              "noisy": true,
+              "cells": {"react":[288,285,306,null,0],"vue":[620,599,657,null,0],"angular":[706,696,724,null,0]}
             },
             {
               "id": "script",
               "best": null,
               "noisy": false,
               "cells": {
-                "react": [416.1,407.9,439.3,null,0],
-                "vue": [126.3,121,129,null,0],
-                "angular": [393.3,376.9,400.9,null,0]
+                "react": [393.46,379.4,414.4,null,0],
+                "vue": [121.48,113.6,133.4,null,0],
+                "angular": [348.8,340.49,364.3,null,0]
               }
             },
             {
               "id": "tbt",
               "best": null,
               "noisy": false,
-              "cells": {"react":[296,288.3,314.5,null,0],"vue":[501,482,511.5,null,0],"angular":[594,584.5,601.5,null,0]}
+              "cells": {
+                "react": [280.5,267.3,298.3,null,0],
+                "vue": [469.5,452.3,483,null,0],
+                "angular": [539.5,513.3,546.8,null,0]
+              }
             },
             {
               "id": "heap",
               "best": null,
               "noisy": false,
-              "cells": {"react":[3659,3658,3659,null,0],"vue":[4641,4641,4641,null,0],"angular":[4986,4986,4988,null,0]}
+              "cells": {"react":[3661,3659,3661,null,0],"vue":[4643,4643,4643,null,0],"angular":[4991,4990,4993,null,0]}
             },
             {
               "id": "nodes",
@@ -843,38 +851,38 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [599,575.9,608.1,null,0],
-                "vue": [608.5,597.9,652.7,null,0],
-                "angular": [719.7,703.4,738.6,null,0]
+                "react": [579.3,561.4,589.3,null,0],
+                "vue": [569.1,561.3,604.8,null,0],
+                "angular": [671.2,665.9,690.1,null,0]
               }
             },
             {
               "id": "fcp",
               "best": null,
-              "noisy": false,
-              "cells": {"react":[294,288,296,null,0],"vue":[230,215,257,null,0],"angular":[308,301,327,null,0]}
+              "noisy": true,
+              "cells": {"react":[288,280,296,null,0],"vue":[216,209,220,null,0],"angular":[298,293,307,null,0]}
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [398,382.3,404.3,null,0],
-                "vue": [123,114.3,137.3,null,0],
-                "angular": [372.4,362.7,379.1,null,0]
+                "react": [377,371.8,388.8,null,0],
+                "vue": [116.4,113.1,119.7,null,0],
+                "angular": [345.2,333.9,352.9,null,0]
               }
             },
             {
               "id": "tbt",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[280,260.5,293,null,0],"vue":[392,379.5,422.3,null,0],"angular":[498,486,509.3,null,0]}
+              "noisy": false,
+              "cells": {"react":[263,254,275,null,0],"vue":[362,355.3,380,null,0],"angular":[455.5,449.8,469.8,null,0]}
             },
             {
               "id": "heap",
               "best": null,
               "noisy": false,
-              "cells": {"react":[3662,3660,3662,null,0],"vue":[4650,4650,4650,null,0],"angular":[5006,5006,5006,null,0]}
+              "cells": {"react":[3664,3661,3664,null,0],"vue":[4652,4652,4652,null,0],"angular":[5010,5010,5010,null,0]}
             },
             {
               "id": "nodes",
@@ -894,21 +902,21 @@
             {
               "id": "clickFrame",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [64.85,63.4,67.44999999999999,null,0],
-                "vue": [74.65,71.73,77.85,null,0],
-                "angular": [70.9,66.2,87.07,null,0]
+                "react": [66.9,61.92,73.85000000000001,null,0],
+                "vue": [67.8,65.05000000000001,69.13,null,0],
+                "angular": [64.4,62.23,66.63,null,0]
               }
             },
             {
               "id": "settle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [49.6,48.75,50.38,null,0],
-                "vue": [52.5,48.92,55.95,null,0],
-                "angular": [70.5,65.47,86.7,null,0]
+                "react": [50.35,48.28,58.35,null,0],
+                "vue": [48.6,47.13,50.02,null,0],
+                "angular": [64.25,62.2,66.42,null,0]
               }
             },
             {
@@ -916,9 +924,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [34.11,33.28,35.553,null,0],
-                "vue": [11.34,10.49,11.88,null,0],
-                "angular": [35.89,33.56,43.26,null,0]
+                "react": [34.86,33.06,38.49,null,0],
+                "vue": [10.34,9.885,10.99,null,0],
+                "angular": [32.03,30.63,34.43,null,0]
               }
             },
             {
@@ -926,9 +934,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [14.86,13.75,16.4,null,0],
-                "vue": [30.13,27.45,33.31,null,0],
-                "angular": [16.12,14.83,17.77,null,0]
+                "react": [15.15,13.57,16.73,null,0],
+                "vue": [27.28,26.2,29.04,null,0],
+                "angular": [15.32,14.29,15.88,null,0]
               }
             }
           ],
@@ -943,41 +951,41 @@
             {
               "id": "clickFrame",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [218.4,215.3,256,null,0],
-                "vue": [306.6,277.2,365.9,null,0],
-                "angular": [198.2,190.3,209.1,null,0]
+                "react": [159.3,153,170,null,0],
+                "vue": [188.6,185.47,189.6,null,0],
+                "angular": [126.8,124.2,134.1,null,0]
               }
             },
             {
               "id": "settle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [638.45,625.3,690.5,null,0],
-                "vue": [624.3,563.4,782.4,null,0],
-                "angular": [414,392.4,469.2,null,0]
+                "react": [551.3,537.7,592,null,0],
+                "vue": [426.45,407.4,450.6,null,0],
+                "angular": [280.9,269.7,298.4,null,0]
               }
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [183.6,174.7,209.3,null,0],
-                "vue": [51.05,47.050000000000004,57.38,null,0],
-                "angular": [187.5,171.8,208,null,0]
+                "react": [135.8,131.1,149.6,null,0],
+                "vue": [34.2,31.29,37.79,null,0],
+                "angular": [116.9,113.2,123.1,null,0]
               }
             },
             {
               "id": "layout",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [109.3,101.9,126.7,null,0],
-                "vue": [74.72,64.5,86.35,null,0],
-                "angular": [121.6,112,133.8,null,0]
+                "react": [83.4,79.13,87.29,null,0],
+                "vue": [48.84,46.89,52.11,null,0],
+                "angular": [78.46,75.07,82.92,null,0]
               }
             }
           ],
@@ -992,64 +1000,68 @@
             {
               "id": "keyProc",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [16.1,14.96,18.13,null,0],
-                "vue": [25.75,24.82,31.52,null,0],
-                "angular": [17.82,17.56,20.11,null,0]
+                "react": [13.2,12.93,15.28,null,0],
+                "vue": [19.4,17.64,21.31,null,0],
+                "angular": [13.38,12.53,15.01,null,0]
               }
             },
             {
               "id": "keyProcP95",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [29.98,28.88,32.96,null,0],
-                "vue": [59.94,59.33,71.41,null,0],
-                "angular": [48.19,40.16,52.09,null,0]
+                "react": [23.93,22.51,24.52,null,0],
+                "vue": [45.83,42.64,50.71,null,0],
+                "angular": [31.61,28.01,33.02,null,0]
               }
             },
             {
               "id": "keyFrame",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [18.15,16.5,20.64,null,0],
-                "vue": [28.02,27.27,35.56,null,0],
-                "angular": [19.35,19.11,21.68,null,0]
+                "react": [14.68,14.07,16.36,null,0],
+                "vue": [21.17,18.86,23.26,null,0],
+                "angular": [14.45,13.72,16.32,null,0]
               }
             },
             {
               "id": "scriptPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [6.293,6.054,7.131,null,0],
-                "vue": [2.716,2.593,3.006,null,0],
-                "angular": [7.204,6.627,8.333,null,0]
+                "react": [5.115,4.923,5.293,null,0],
+                "vue": [2.117,1.936,2.25,null,0],
+                "angular": [5.091,4.775,5.526,null,0]
               }
             },
             {
               "id": "layoutPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [5.256,5.0154,5.449,null,0],
-                "vue": [10.79,10.148,11.94,null,0],
-                "angular": [6.012,5.355,7.139,null,0]
+                "react": [4.349,4.123,4.604,null,0],
+                "vue": [8.58,7.879,9.37,null,0],
+                "angular": [3.91,3.849,4.359,null,0]
               }
             },
             {
               "id": "slowEvents",
               "best": null,
               "noisy": false,
-              "cells": {"react":[154.5,149.8,155.8,null,0],"vue":[220,214,220.8,null,0],"angular":[189,184,191.8,null,0]}
+              "cells": {
+                "react": [143.5,140.3,148.8,null,0],
+                "vue": [215.5,213.3,217,null,0],
+                "angular": [173,162.5,175.8,null,0]
+              }
             },
             {
               "id": "tbt",
               "best": null,
               "noisy": true,
-              "cells": {"react":[0,0,0,null,0],"vue":[29,16,56.5,null,0],"angular":[0,0,0,null,0]}
+              "cells": {"react":[0,0,0,null,0],"vue":[3,0,9.25,null,0],"angular":[0,0,0,null,0]}
             }
           ],
           "notes": [],
@@ -1065,9 +1077,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [206.4,185.3,233,null,0],
-                "vue": [401.5,386.7,439.8,null,0],
-                "angular": [309.9,301.3,372.6,null,0]
+                "react": [158.2,142,167.48,null,0],
+                "vue": [311.5,267.3,366.7,null,0],
+                "angular": [227.7,212.8,243.3,null,0]
               }
             },
             {
@@ -1075,9 +1087,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [202.8,184,227.8,null,0],
-                "vue": [308.1,299.3,340.4,null,0],
-                "angular": [357.8,351.4,436.2,null,0]
+                "react": [157.3,141.3,166.4,null,0],
+                "vue": [241.9,209.4,283.2,null,0],
+                "angular": [261.8,245.9,283.6,null,0]
               }
             },
             {
@@ -1085,9 +1097,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [79.44,77.13,94.94,null,0],
-                "vue": [4.29,4.022,4.888,null,0],
-                "angular": [208.4,203.1,251.1,null,0]
+                "react": [62.91,60.87,66.91,null,0],
+                "vue": [3.58,3.135,3.76,null,0],
+                "angular": [156.7,143.3,163.5,null,0]
               }
             },
             {
@@ -1095,9 +1107,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [108.1,93.57,119.9,null,0],
-                "vue": [78.34,74.38,94.36,null,0],
-                "angular": [127.3,123.8,149.4,null,0]
+                "react": [82.65,75.43,87.17,null,0],
+                "vue": [61.88,54.653,78.12,null,0],
+                "angular": [86.06,83.84,93.54,null,0]
               }
             }
           ],
@@ -1112,60 +1124,64 @@
             {
               "id": "keyProc",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [14.05,13.7,14.93,null,0],
-                "vue": [22.05,21.57,25.13,null,0],
-                "angular": [16,14.9,17.849999999999998,null,0]
+                "react": [11.9,10.5,12.82,null,0],
+                "vue": [16.75,16.32,18.15,null,0],
+                "angular": [11.7,10.63,12.78,null,0]
               }
             },
             {
               "id": "keyProcP95",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [22.28,21.48,24.86,null,0],
-                "vue": [36.88,33.06,45.69,null,0],
-                "angular": [35.08,29.69,38.6,null,0]
+                "react": [20.32,18.57,20.81,null,0],
+                "vue": [27.08,24.06,29.98,null,0],
+                "angular": [24.37,21.88,26.25,null,0]
               }
             },
             {
               "id": "keyFrame",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[16.5,16.1,17.85,null,0],"vue":[25,23.8,27.82,null,0],"angular":[18.5,17.43,21.43,null,0]}
+              "noisy": false,
+              "cells": {
+                "react": [13.9,12.35,15.2,null,0],
+                "vue": [18.25,17.650000000000002,19.98,null,0],
+                "angular": [13.45,12.22,14.9,null,0]
+              }
             },
             {
               "id": "scriptPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [4.509,4.433,5.147,null,0],
-                "vue": [1.698,1.662,1.892,null,0],
-                "angular": [5.423,5.274,6.64,null,0]
+                "react": [3.904,3.492,4.23,null,0],
+                "vue": [1.421,1.357,1.548,null,0],
+                "angular": [4.207,3.8449,4.334,null,0]
               }
             },
             {
               "id": "layoutPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [3.598,3.437,3.821,null,0],
-                "vue": [7.544,7.396,8.532,null,0],
-                "angular": [4.342,4.0649,4.994,null,0]
+                "react": [3.173,2.76,3.407,null,0],
+                "vue": [6.049,5.704,6.5453,null,0],
+                "angular": [3.001,2.871,3.282,null,0]
               }
             },
             {
               "id": "slowEvents",
               "best": null,
               "noisy": false,
-              "cells": {"react":[177.5,174.5,180,null,0],"vue":[195,194,195,null,0],"angular":[178.5,175,181.3,null,0]}
+              "cells": {"react":[164,159.8,173,null,0],"vue":[191,190.3,192.8,null,0],"angular":[153.5,150.5,162.3,null,0]}
             },
             {
               "id": "tbt",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[0,0,0,null,0],"vue":[0,0,9,null,0],"angular":[0,0,0,null,0]}
+              "noisy": false,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
             }
           ],
           "notes": [],
@@ -1179,21 +1195,21 @@
             {
               "id": "clickFrame",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [167.1,163.8,193.48,null,0],
-                "vue": [348.9,336.8,433.3,null,0],
-                "angular": [287.7,259.8,326.4,null,0]
+                "react": [127.2,113.8,140.2,null,0],
+                "vue": [277.4,239.1,287.5,null,0],
+                "angular": [213.8,194.8,219.8,null,0]
               }
             },
             {
               "id": "settle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [163.9,161.6,191.3,null,0],
-                "vue": [291.8,275.7,340.1,null,0],
-                "angular": [333,301.9,405,null,0]
+                "react": [124.3,112.6,138,null,0],
+                "vue": [228.7,195.6,235.47,null,0],
+                "angular": [248.3,233.3,254.8,null,0]
               }
             },
             {
@@ -1201,19 +1217,19 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [110,106.2,120.9,null,0],
-                "vue": [6.49,6.043,7.1850000000000005,null,0],
-                "angular": [187.9,170.1,218.9,null,0]
+                "react": [81.06,72.16,91.66,null,0],
+                "vue": [5.93,4.86,7.032,null,0],
+                "angular": [143.7,127.9,145.5,null,0]
               }
             },
             {
               "id": "layout",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [44.2,41.91,54.63,null,0],
-                "vue": [58.34,54.89,75.5,null,0],
-                "angular": [118.8,101.6,153.9,null,0]
+                "react": [35.7,34.34,37.89,null,0],
+                "vue": [47.5,43.27,53.4,null,0],
+                "angular": [85.62,80.79,93.53,null,0]
               }
             }
           ],
@@ -1229,36 +1245,40 @@
               "id": "keyProc",
               "best": null,
               "noisy": false,
-              "cells": {"react":[12,11.33,13.47,null,0],"vue":[19.5,18.7,22.13,null,0],"angular":[13.9,13.2,15.5,null,0]}
+              "cells": {
+                "react": [9.7,9.125,10.55,null,0],
+                "vue": [14.6,13.72,16.27,null,0],
+                "angular": [10.25,9.625,11.6,null,0]
+              }
             },
             {
               "id": "keyProcP95",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [18.88,18.15,23.13,null,0],
-                "vue": [31.9,29.46,34.02,null,0],
-                "angular": [29.12,25.98,32.19,null,0]
+                "react": [17.7,17.23,19.31,null,0],
+                "vue": [23.86,21.25,25.29,null,0],
+                "angular": [21.45,18.94,23.11,null,0]
               }
             },
             {
               "id": "keyFrame",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [14.149999999999999,13.57,16.02,null,0],
-                "vue": [21.6,20.57,24.63,null,0],
-                "angular": [16.2,15.22,18.07,null,0]
+                "react": [11.5,10.63,12.45,null,0],
+                "vue": [16.2,15.13,18.22,null,0],
+                "angular": [11.8,11.03,13.67,null,0]
               }
             },
             {
               "id": "scriptPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [3.325,3.281,3.985,null,0],
-                "vue": [1.596,1.563,1.803,null,0],
-                "angular": [4.551,4.245,5.324,null,0]
+                "react": [2.792,2.632,3.077,null,0],
+                "vue": [1.344,1.277,1.472,null,0],
+                "angular": [3.356,3.141,3.602,null,0]
               }
             },
             {
@@ -1266,25 +1286,21 @@
               "best": null,
               "noisy": false,
               "cells": {
-                "react": [2.294,2.238,2.5149,null,0],
-                "vue": [4.771,4.752,5.479,null,0],
-                "angular": [2.964,2.675,3.341,null,0]
+                "react": [1.927,1.833,1.993,null,0],
+                "vue": [3.94,3.628,4.328,null,0],
+                "angular": [2.034,1.9746,2.199,null,0]
               }
             },
             {
               "id": "slowEvents",
               "best": null,
               "noisy": false,
-              "cells": {
-                "react": [216.5,213,223,null,0],
-                "vue": [249.5,248.3,251.5,null,0],
-                "angular": [229.5,226.3,233.3,null,0]
-              }
+              "cells": {"react":[192,180.5,203,null,0],"vue":[238.5,233.5,241.8,null,0],"angular":[185.5,185,202,null,0]}
             },
             {
               "id": "tbt",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
             }
           ],
@@ -1301,9 +1317,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [131,124,144.7,null,0],
-                "vue": [295.8,286.4,396.4,null,0],
-                "angular": [259.7,233,283.48,null,0]
+                "react": [103.5,97.83,107.1,null,0],
+                "vue": [224.3,200.6,245.4,null,0],
+                "angular": [169.7,161.1,197.2,null,0]
               }
             },
             {
@@ -1311,9 +1327,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [129.7,123.5,143.48,null,0],
-                "vue": [236.3,231.1,328.7,null,0],
-                "angular": [305.5,273.8,330.8,null,0]
+                "react": [103,97.4,106.2,null,0],
+                "vue": [177.7,158.4,192.2,null,0],
+                "angular": [198.2,189.1,231.4,null,0]
               }
             },
             {
@@ -1321,9 +1337,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [73.05000000000001,70.33,79.77,null,0],
-                "vue": [7.08,6.502,7.628,null,0],
-                "angular": [173.47,151.1,189.6,null,0]
+                "react": [58.47,56.8,62.22,null,0],
+                "vue": [5.32,5.162,5.997,null,0],
+                "angular": [113.2,106.4,125.1,null,0]
               }
             },
             {
@@ -1331,9 +1347,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [45.62,40.58,49.11,null,0],
-                "vue": [55.61,53.36,63.02,null,0],
-                "angular": [105.3,96.57,118.8,null,0]
+                "react": [36.66,32.5,39.27,null,0],
+                "vue": [43.02,39.59,46.06,null,0],
+                "angular": [69.01,66.66,86.37,null,0]
               }
             }
           ],
@@ -1348,17 +1364,21 @@
             {
               "id": "clickFrame",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[57.5,57.17,62.35,null,0],"vue":[135.8,122,148,null,0],"angular":[135.6,121.45,149,null,0]}
+              "noisy": false,
+              "cells": {
+                "react": [41.65,37.15,46.65,null,0],
+                "vue": [96.65,84.65,103.5,null,0],
+                "angular": [102.1,100.3,115.8,null,0]
+              }
             },
             {
               "id": "settle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [45.05,41.63,47.73,null,0],
-                "vue": [104.5,93.25,115,null,0],
-                "angular": [156.6,140.8,173.2,null,0]
+                "react": [32.9,28.52,35.88,null,0],
+                "vue": [70.75,63.5,76.53,null,0],
+                "angular": [103.3,101.5,119.3,null,0]
               }
             },
             {
@@ -1366,9 +1386,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [34.53,33.17,38.57,null,0],
-                "vue": [4.165,3.802,4.545,null,0],
-                "angular": [62.78,59.76,70.85,null,0]
+                "react": [26.37,23.42,29.18,null,0],
+                "vue": [3.365,2.958,3.755,null,0],
+                "angular": [45.14,42.83,50.46,null,0]
               }
             },
             {
@@ -1376,9 +1396,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [8.184999999999999,7.395,9.558,null,0],
-                "vue": [23.18,21.89,23.53,null,0],
-                "angular": [65.21,55.94,72.245,null,0]
+                "react": [6.31,5.73,7.31,null,0],
+                "vue": [16.66,14.73,20.09,null,0],
+                "angular": [45.99,44.06,50.42,null,0]
               }
             }
           ],
@@ -1395,9 +1415,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [16.08,15.72,17.94,null,0],
-                "vue": [23.2,22.56,25.89,null,0],
-                "angular": [17.13,15.98,21.27,null,0]
+                "react": [14.38,12.450000000000001,15.66,null,0],
+                "vue": [18.8,17.8,19.8,null,0],
+                "angular": [12.07,11.54,13.95,null,0]
               }
             },
             {
@@ -1405,9 +1425,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [23.54,22.71,26.38,null,0],
-                "vue": [35.83,32.74,44.22,null,0],
-                "angular": [36.55,33.63,41.13,null,0]
+                "react": [21.09,20.09,21.84,null,0],
+                "vue": [31.23,28.74,33.84,null,0],
+                "angular": [29.44,26.89,32.34,null,0]
               }
             },
             {
@@ -1415,9 +1435,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [18.65,17.81,20.3,null,0],
-                "vue": [25.98,24.97,29.46,null,0],
-                "angular": [19.8,18.41,24.02,null,0]
+                "react": [16.67,14.05,17.14,null,0],
+                "vue": [20.13,19.23,21.44,null,0],
+                "angular": [13.68,13.11,16.33,null,0]
               }
             },
             {
@@ -1425,32 +1445,32 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [5.309,5.188,6.12,null,0],
-                "vue": [1.648,1.595,2.096,null,0],
-                "angular": [5.981,5.165,6.512,null,0]
+                "react": [4.552,4.337,4.831,null,0],
+                "vue": [1.401,1.335,1.6,null,0],
+                "angular": [4.223,4.0747,4.514,null,0]
               }
             },
             {
               "id": "layoutPerKey",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [6.049,5.952,6.712,null,0],
-                "vue": [10.41,10.08,11.59,null,0],
-                "angular": [7.076,6.403,7.557,null,0]
+                "react": [5.156,4.972,5.752,null,0],
+                "vue": [8.512,8.256,9.14,null,0],
+                "angular": [4.929,4.639,5.3953,null,0]
               }
             },
             {
               "id": "slowEvents",
               "best": null,
               "noisy": false,
-              "cells": {"react":[72.5,69.25,73,null,0],"vue":[75.5,74,76,null,0],"angular":[69,67.25,70.5,null,0]}
+              "cells": {"react":[65.5,65,72.5,null,0],"vue":[74,74,75,null,0],"angular":[60.5,58.25,63.5,null,0]}
             },
             {
               "id": "tbt",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0.75,null,0],"angular":[0,0,0,null,0]}
+              "noisy": false,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
             }
           ],
           "notes": [],
@@ -1466,9 +1486,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [120.4,117.5,145.2,null,0],
-                "vue": [198.8,193.7,229.4,null,0],
-                "angular": [149.1,140.3,158.8,null,0]
+                "react": [102.5,96.35,114.2,null,0],
+                "vue": [160.1,151.9,170.6,null,0],
+                "angular": [116.3,113.4,121.4,null,0]
               }
             },
             {
@@ -1476,9 +1496,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [118,115.7,142.6,null,0],
-                "vue": [162.3,156.5,194.6,null,0],
-                "angular": [170.5,161.2,181.9,null,0]
+                "react": [100.8,95.28,112.4,null,0],
+                "vue": [130.7,125.9,146.47,null,0],
+                "angular": [120.3,116.2,126.3,null,0]
               }
             },
             {
@@ -1486,9 +1506,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [76.41,74.34,94.85,null,0],
-                "vue": [6.16,5.445,6.268,null,0],
-                "angular": [88.66,84.448,97.22,null,0]
+                "react": [65.34,59.12,72.44,null,0],
+                "vue": [4.915,4.652,5.425000000000001,null,0],
+                "angular": [62.9,60.71,65.7,null,0]
               }
             },
             {
@@ -1496,9 +1516,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [34.25,33.68,42.3,null,0],
-                "vue": [35.45,34.34,36.88,null,0],
-                "angular": [62.09,56.72,69.82,null,0]
+                "react": [29.88,28.95,30.76,null,0],
+                "vue": [28.27,24.35,29.63,null,0],
+                "angular": [42.11,41.445,42.87,null,0]
               }
             }
           ],
@@ -1515,9 +1535,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [93.6,89.65,104.6,null,0],
-                "vue": [143.6,133.9,158.6,null,0],
-                "angular": [145.2,131.7,170,null,0]
+                "react": [72.25,65.48,77.78,null,0],
+                "vue": [113.3,102.4,115.8,null,0],
+                "angular": [110.2,104.3,116.4,null,0]
               }
             },
             {
@@ -1525,9 +1545,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [91.1,87.6,102.4,null,0],
-                "vue": [128.4,122.3,144.8,null,0],
-                "angular": [173.3,162.1,198.9,null,0]
+                "react": [70.9,64.2,75.42,null,0],
+                "vue": [100.8,90.5,103.3,null,0],
+                "angular": [115.7,108.8,125,null,0]
               }
             },
             {
@@ -1535,9 +1555,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [55.06,50.26,59.67,null,0],
-                "vue": [7.19,6.963,7.928,null,0],
-                "angular": [81.95,72.34,91.66,null,0]
+                "react": [43.17,37.89,44.23,null,0],
+                "vue": [5.8,5.303,6.082,null,0],
+                "angular": [52.51,48.69,58.72,null,0]
               }
             },
             {
@@ -1545,9 +1565,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [27.56,24.28,31.38,null,0],
-                "vue": [22.23,21.16,24.92,null,0],
-                "angular": [73.47,65.66,85.1,null,0]
+                "react": [18.13,17.86,22.2,null,0],
+                "vue": [17.76,16.45,18.67,null,0],
+                "angular": [47.84,46.29,52.59,null,0]
               }
             }
           ],
@@ -1563,22 +1583,26 @@
               "id": "clickFrame",
               "best": null,
               "noisy": true,
-              "cells": {"react":[138.9,132,156.7,null,0],"vue":[233.9,230,301.8,null,0],"angular":[1084,1005,1266,null,0]}
+              "cells": {
+                "react": [105.3,95.1,112.9,null,0],
+                "vue": [185.3,173.5,204.7,null,0],
+                "angular": [176.1,163.1,181.7,null,0]
+              }
             },
             {
               "id": "settle",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[1140,1127,1234,null,0],"vue":[1532,1489,1705,null,0],"angular":[1221,1112,1418,null,0]}
+              "noisy": false,
+              "cells": {"react":[1012,983.8,1061,null,0],"vue":[1362,1301,1385,null,0],"angular":[1145,1106,1191,null,0]}
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [350.5,342.4,426.8,null,0],
-                "vue": [34.53,32.79,35.77,null,0],
-                "angular": [537,481.6,599.3,null,0]
+                "react": [278.6,257.4,295,null,0],
+                "vue": [28.19,26.52,28.46,null,0],
+                "angular": [364.1,347.8,387.7,null,0]
               }
             },
             {
@@ -1586,9 +1610,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [111.7,105.2,125.9,null,0],
-                "vue": [113.7,111.5,129.3,null,0],
-                "angular": [517.6,466.3,618,null,0]
+                "react": [81.355,78.89,90.17,null,0],
+                "vue": [87.98,81.72,98.25,null,0],
+                "angular": [384.3,370.4,414.1,null,0]
               }
             }
           ],
@@ -1605,9 +1629,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [18.18,16.89,19.21,null,0],
-                "vue": [28.77,26.44,31.04,null,0],
-                "angular": [32.5,29.2,38.69,null,0]
+                "react": [14.35,12.29,16.14,null,0],
+                "vue": [23.53,19.38,25.91,null,0],
+                "angular": [22.18,20.86,26.11,null,0]
               }
             },
             {
@@ -1615,9 +1639,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [34.67,32.63,35.44,null,0],
-                "vue": [51.58,50.27,58.52,null,0],
-                "angular": [64.86,53.42,70.88,null,0]
+                "react": [31.16,28.4,33.17,null,0],
+                "vue": [40.050000000000004,37.71,41.53,null,0],
+                "angular": [38.5,36.62,44.69,null,0]
               }
             },
             {
@@ -1625,9 +1649,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [25.23,23.38,26.02,null,0],
-                "vue": [35.6,33.88,40.64,null,0],
-                "angular": [43.28,37.55,53.64,null,0]
+                "react": [18.38,15.549999999999999,21.01,null,0],
+                "vue": [28.98,24.41,32.88,null,0],
+                "angular": [28.45,26.43,31.2,null,0]
               }
             },
             {
@@ -1635,9 +1659,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [3.063,2.83,3.139,null,0],
-                "vue": [1.802,1.772,1.942,null,0],
-                "angular": [7.968,7.282,9.863,null,0]
+                "react": [2.327,2.178,2.613,null,0],
+                "vue": [1.373,1.3,1.672,null,0],
+                "angular": [5.499,4.942,6.157,null,0]
               }
             },
             {
@@ -1645,21 +1669,21 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [3.9450000000000003,3.77,4.147,null,0],
-                "vue": [8.317,7.584,8.6,null,0],
-                "angular": [7.979,6.792,8.923,null,0]
+                "react": [3.38,3.132,3.515,null,0],
+                "vue": [6.001,5.351,6.685,null,0],
+                "angular": [4.69,4.502,5.497,null,0]
               }
             },
             {
               "id": "slowEvents",
               "best": null,
               "noisy": false,
-              "cells": {"react":[36,35.25,37,null,0],"vue":[45,45,46,null,0],"angular":[40,40,40,null,0]}
+              "cells": {"react":[36,35,37,null,0],"vue":[33,32.25,33.75,null,0],"angular":[37,36.25,37,null,0]}
             },
             {
               "id": "tbt",
               "best": null,
-              "noisy": false,
+              "noisy": true,
               "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
             }
           ],
@@ -1676,9 +1700,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [53.34999999999999,48.52,60.5,null,0],
-                "vue": [89.8,82.1,102,null,0],
-                "angular": [78.1,74.1,81.22,null,0]
+                "react": [38.35,36.13,40.949999999999996,null,0],
+                "vue": [68.05000000000001,61.55,78.92,null,0],
+                "angular": [50.9,50.28,54.15,null,0]
               }
             },
             {
@@ -1686,9 +1710,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [35.34999999999999,31.95,38.17,null,0],
-                "vue": [63.5,60.57,75.35000000000001,null,0],
-                "angular": [42.1,38.52,42.85,null,0]
+                "react": [24.9,23.73,26,null,0],
+                "vue": [48.34999999999999,44.38,53.4,null,0],
+                "angular": [26.7,26.13,28.27,null,0]
               }
             },
             {
@@ -1696,9 +1720,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [22.91,21.79,24.28,null,0],
-                "vue": [6.945,6.215,7.993,null,0],
-                "angular": [21.01,19.63,21.54,null,0]
+                "react": [15.12,14.32,15.52,null,0],
+                "vue": [5.79,5.247,6.8,null,0],
+                "angular": [14.8,14.48,14.94,null,0]
               }
             },
             {
@@ -1706,9 +1730,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [12.49,11.46,14.27,null,0],
-                "vue": [13.81,12.91,15.5,null,0],
-                "angular": [24.21,23.39,28.89,null,0]
+                "react": [8.695,8.265,9.1,null,0],
+                "vue": [8.2,7.85,9.715,null,0],
+                "angular": [15.66,15.05,16.48,null,0]
               }
             }
           ],
@@ -1723,27 +1747,31 @@
             {
               "id": "clickFrame",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[43,39.88,50.02,null,0],"vue":[105.8,99.5,115.4,null,0],"angular":[103.7,96.32,141,null,0]}
+              "noisy": false,
+              "cells": {
+                "react": [31.15,27.5,33.08,null,0],
+                "vue": [72.1,63.23,78.53,null,0],
+                "angular": [68.95,64.4,80.7,null,0]
+              }
             },
             {
               "id": "settle",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [33.4,32.13,40.9,null,0],
-                "vue": [91.05,87.97,100.3,null,0],
-                "angular": [102.6,95.15,136.6,null,0]
+                "react": [24.4,22.15,25.93,null,0],
+                "vue": [62.3,54.5,67.25,null,0],
+                "angular": [68.25,62.98,78.47,null,0]
               }
             },
             {
               "id": "script",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [25.93,24.45,31.29,null,0],
-                "vue": [4.615,4.55,5.03,null,0],
-                "angular": [55.78,53.13,80.14,null,0]
+                "react": [19.045,17.85,20.51,null,0],
+                "vue": [3.59,3.43,4.048,null,0],
+                "angular": [38.08,37.04,44.77,null,0]
               }
             },
             {
@@ -1751,9 +1779,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [3.97,3.46,4.582,null,0],
-                "vue": [5.1,5.024999999999999,5.192,null,0],
-                "angular": [23.57,19.38,27.27,null,0]
+                "react": [2.915,2.618,3.293,null,0],
+                "vue": [3.325,2.887,3.688,null,0],
+                "angular": [13.04,11.8,14.04,null,0]
               }
             }
           ],
@@ -1770,9 +1798,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [94.25,88.35,113.2,null,0],
-                "vue": [191.6,180.6,243.9,null,0],
-                "angular": [149.1,138.1,178.8,null,0]
+                "react": [68.75,64.88,71.35,null,0],
+                "vue": [141.4,120.8,162.8,null,0],
+                "angular": [123.4,110.9,127.6,null,0]
               }
             },
             {
@@ -1780,9 +1808,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [94,87.95,107.7,null,0],
-                "vue": [166.9,159,208.8,null,0],
-                "angular": [163.6,150.5,192.9,null,0]
+                "react": [68.55000000000001,63.3,71.28,null,0],
+                "vue": [124.8,104.3,141.7,null,0],
+                "angular": [130.8,111.8,134.1,null,0]
               }
             },
             {
@@ -1790,9 +1818,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [49.445,45.42,54.15,null,0],
-                "vue": [7.84,7.335,8.442,null,0],
-                "angular": [96.52,86.48,117.7,null,0]
+                "react": [34.75,33.21,38.947,null,0],
+                "vue": [5.83,5.375,7.77,null,0],
+                "angular": [72.03,62.42,74.76,null,0]
               }
             },
             {
@@ -1800,9 +1828,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [35.91,30.27,44.07,null,0],
-                "vue": [28.42,26.31,32.53,null,0],
-                "angular": [47.91,43.48,54.04,null,0]
+                "react": [25.38,25.15,26.01,null,0],
+                "vue": [20.01,16.87,21.92,null,0],
+                "angular": [39.88,34.38,41.84,null,0]
               }
             }
           ],
@@ -1819,9 +1847,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [530.6,522.2,534,null,0],
-                "vue": [567.1,562,571.4,null,0],
-                "angular": [23.5,22.32,30.42,null,0]
+                "react": [511.8,503.9,521.8,null,0],
+                "vue": [545.45,541.1,550.1,null,0],
+                "angular": [21.65,18.35,23.38,null,0]
               }
             },
             {
@@ -1829,9 +1857,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [12.9,12.39,13.54,null,0],
-                "vue": [17.57,16.41,21.97,null,0],
-                "angular": [12.38,10.88,14.46,null,0]
+                "react": [12.07,10.82,12.28,null,0],
+                "vue": [16.1,14.25,18.49,null,0],
+                "angular": [9.25,9.15,10.61,null,0]
               }
             },
             {
@@ -1839,9 +1867,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [27.7,25.16,29.3,null,0],
-                "vue": [10.23,9.05,11.01,null,0],
-                "angular": [23.95,20.07,28.18,null,0]
+                "react": [23.6,22.23,24.82,null,0],
+                "vue": [8.445,8.01,10.14,null,0],
+                "angular": [18.82,17.91,21.67,null,0]
               }
             }
           ],
@@ -1857,16 +1885,20 @@
               "id": "clickFrame",
               "best": null,
               "noisy": true,
-              "cells": {"react":[48.45,46.92,57,null,0],"vue":[54.9,48.17,60.77,null,0],"angular":[43.8,37.8,47.2,null,0]}
+              "cells": {
+                "react": [38.4,32.4,40.68,null,0],
+                "vue": [35.65000000000001,32.15,45.33,null,0],
+                "angular": [31.049999999999997,28.73,33.55,null,0]
+              }
             },
             {
               "id": "settle",
               "best": null,
               "noisy": false,
               "cells": {
-                "react": [94.3,89.42,103.8,null,0],
-                "vue": [96.45,93.22,104.2,null,0],
-                "angular": [89.15,87.13,90.97,null,0]
+                "react": [77.44999999999999,75.4,83.67,null,0],
+                "vue": [86.3,83.47,89.28,null,0],
+                "angular": [79.44999999999999,78.08,83.97,null,0]
               }
             },
             {
@@ -1874,9 +1906,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [33.24,32.05,37.91,null,0],
-                "vue": [14.16,13.17,16.08,null,0],
-                "angular": [20.39,19.12,21.91,null,0]
+                "react": [25.2,22.49,29.01,null,0],
+                "vue": [9.395,8.433,12.98,null,0],
+                "angular": [15.15,14.11,16.99,null,0]
               }
             },
             {
@@ -1884,9 +1916,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [26.11,24.84,28.13,null,0],
-                "vue": [20.36,18.38,26.74,null,0],
-                "angular": [10.42,9.545,12.07,null,0]
+                "react": [20.37,19.24,22.69,null,0],
+                "vue": [17.07,14.13,20.17,null,0],
+                "angular": [7.845000000000001,7.49,8.248,null,0]
               }
             }
           ],
@@ -1901,37 +1933,37 @@
             {
               "id": "mountSync",
               "best": null,
-              "noisy": true,
-              "cells": {"react":[1.3,1.2,1.425,null,0],"vue":[4.175,3.912,4.737,null,0],"angular":[11.5,10.8,12.84,null,0]}
+              "noisy": false,
+              "cells": {
+                "react": [1,1,1.088,null,0],
+                "vue": [2.9749999999999996,2.813,3.425,null,0],
+                "angular": [8.175,7.95,8.55,null,0]
+              }
             },
             {
               "id": "mountReady",
               "best": null,
-              "noisy": true,
+              "noisy": false,
               "cells": {
-                "react": [63.93,61.99,72.32,null,0],
-                "vue": [167.1,148.9,195.3,null,0],
-                "angular": [158,146.1,188.5,null,0]
+                "react": [48.23,45.53,51.33,null,0],
+                "vue": [109.47,102.7,124.9,null,0],
+                "angular": [110.45,103.8,123.5,null,0]
               }
             },
             {
               "id": "scriptPerCycle",
               "best": null,
               "noisy": true,
-              "cells": {
-                "react": [46.79,45.1,54.31,null,0],
-                "vue": [1.1949999999999998,1.073,1.255,null,0],
-                "angular": [77,70.58,89.98,null,0]
-              }
+              "cells": {"react":[37,34.79,37.72,null,0],"vue":[0.855,0.74,0.97,null,0],"angular":[53.74,49.2,60.7,null,0]}
             },
             {
               "id": "retainedPerCycle",
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [0.3102,0.2908,0.4508,null,0],
-                "vue": [0.1778,0.1657,0.1945,null,0],
-                "angular": [0.3985,0.3726,0.463,null,0]
+                "react": [0.1213,0.09692,0.1352,null,0],
+                "vue": [0.1909,0.1741,0.1942,null,0],
+                "angular": [0.3538,0.3411,0.3773,null,0]
               }
             },
             {
@@ -1939,9 +1971,9 @@
               "best": null,
               "noisy": true,
               "cells": {
-                "react": [1.747,1.742,1.754,null,0],
-                "vue": [0.4326,-0.7778,1.73,null,0],
-                "angular": [10.22,9.524,10.26,null,0]
+                "react": [1.7449,1.741,1.755,null,0],
+                "vue": [1.829,-0.09578,2.193,null,0],
+                "angular": [10.23,10.07,10.26,null,0]
               }
             },
             {
@@ -1958,12 +1990,12 @@
       "renders": [],
       "calibration": {
         "n": 30,
-        "median": 88.13,
-        "spread": 0.1138,
-        "trend": 0.08057,
-        "runDriftMedian": 0.00464,
-        "runDriftMaxAbs": 0.4286,
-        "flags": ["spread","run"]
+        "median": 83.92,
+        "spread": 0.09139,
+        "trend": 0.0387,
+        "runDriftMedian": -0.02828,
+        "runDriftMaxAbs": 0.2821,
+        "flags": ["run"]
       },
       "background": null
     }
@@ -1972,35 +2004,35 @@
     {
       "lib": "react",
       "form": "credit",
-      "raw": 637.1,
-      "gzip": 197.5,
-      "brotli": 168.2,
+      "raw": 637.7,
+      "gzip": 197.6,
+      "brotli": 168.1,
       "overBaselineGzip": null,
-      "top": [["react-dom",176.8],["@reformer/ui-kit",85.37],["@reformer/core",78.75],["форма: общий код",62.23],["react-day-picker",40.21]]
+      "top": [["react-dom",176.8],["@reformer/ui-kit",85.37],["@reformer/core",78.75],["форма: общий код",62.63],["react-day-picker",40.21]]
     },
     {
       "lib": "vue",
       "form": "credit",
-      "raw": 544.2,
-      "gzip": 180.7,
+      "raw": 544.8,
+      "gzip": 180.8,
       "brotli": 154.5,
       "overBaselineGzip": null,
-      "top": [["vuetify",265.8],["@reformer/core",70.87],["форма: общий код",62.23],["@vue/runtime-core",44.22],["@vuetify/v0",27.34]]
+      "top": [["vuetify",265.8],["@reformer/core",70.87],["форма: общий код",62.63],["@vue/runtime-core",44.22],["@vuetify/v0",27.34]]
     },
     {
       "lib": "angular",
       "form": "credit",
-      "raw": 717.9,
+      "raw": 718.4,
       "gzip": 192.7,
       "brotli": 162.5,
       "overBaselineGzip": null,
-      "top": [["@angular/core",134.1],["@taiga-ui/core",129.2],["форма: общий код",87.147],["@reformer/core",81.18],["@angular/router",73.82]]
+      "top": [["@angular/core",134.1],["@taiga-ui/core",129.2],["форма: общий код",87.52],["@reformer/core",81.14],["@angular/router",73.82]]
     },
     {
       "lib": "react",
       "form": "registration",
-      "raw": 579.5,
-      "gzip": 184.2,
+      "raw": 579.7,
+      "gzip": 184.3,
       "brotli": 157.2,
       "overBaselineGzip": null,
       "top": [["react-dom",176.8],["@reformer/ui-kit",85.38],["@reformer/core",72.74],["react-day-picker",40.21],["date-fns",22.32]]
@@ -2008,20 +2040,20 @@
     {
       "lib": "vue",
       "form": "registration",
-      "raw": 486.5,
+      "raw": 486.7,
       "gzip": 167.5,
-      "brotli": 143.5,
+      "brotli": 143.7,
       "overBaselineGzip": null,
       "top": [["vuetify",265.8],["@reformer/core",64.86],["@vue/runtime-core",44.22],["@vuetify/v0",27.34],["@vue/reactivity",17.39]]
     },
     {
       "lib": "angular",
       "form": "registration",
-      "raw": 636.4,
+      "raw": 636.6,
       "gzip": 178.5,
       "brotli": 151.6,
       "overBaselineGzip": null,
-      "top": [["@angular/core",134.1],["@taiga-ui/core",129.1],["@reformer/core",74.11],["@angular/router",73.82],["@reformer/kit-taiga",28.9]]
+      "top": [["@angular/core",134.1],["@taiga-ui/core",129.1],["@reformer/core",74.07],["@angular/router",73.82],["@reformer/kit-taiga",28.9]]
     }
   ],
   "code": [
@@ -2029,62 +2061,62 @@
       "lib": "react",
       "form": "credit",
       "formTs": 559,
-      "formJson": 1000,
+      "formJson": 1025,
       "kitTs": 216,
-      "total": 1775,
+      "total": 1800,
       "files": 9,
-      "gzip": 10807
+      "gzip": 10842
     },
     {
       "lib": "react",
       "form": "registration",
       "formTs": 119,
-      "formJson": 82,
+      "formJson": 85,
       "kitTs": 225,
-      "total": 426,
+      "total": 429,
       "files": 8,
-      "gzip": 4339
+      "gzip": 4351
     },
     {
       "lib": "vue",
       "form": "credit",
       "formTs": 559,
-      "formJson": 1000,
+      "formJson": 1025,
       "kitTs": 244,
-      "total": 1803,
+      "total": 1828,
       "files": 9,
-      "gzip": 10782
+      "gzip": 10819
     },
     {
       "lib": "vue",
       "form": "registration",
       "formTs": 119,
-      "formJson": 82,
+      "formJson": 85,
       "kitTs": 249,
-      "total": 450,
+      "total": 453,
       "files": 8,
-      "gzip": 4317
+      "gzip": 4328
     },
     {
       "lib": "angular",
       "form": "credit",
       "formTs": 559,
-      "formJson": 1000,
+      "formJson": 1025,
       "kitTs": 266,
-      "total": 1825,
+      "total": 1850,
       "files": 10,
-      "gzip": 11280
+      "gzip": 11318
     },
     {
       "lib": "angular",
       "form": "registration",
       "formTs": 119,
-      "formJson": 82,
+      "formJson": 85,
       "kitTs": 286,
-      "total": 487,
+      "total": 490,
       "files": 9,
-      "gzip": 4635
+      "gzip": 4646
     }
   ],
-  "calibration": {"cpu":4,"median":93,"spread":0.3225,"betweenForms":0.1489,"flags":["spread","forms"]}
+  "calibration": {"cpu":4,"median":84,"spread":0.07446,"betweenForms":0.001192,"flags":[]}
 }
