@@ -20,6 +20,12 @@ on:
       - 'projects/reformer-builder/**'
       # Плагины приложения едут на Pages внутри билдера.
       - 'projects/reformer-builder-playground/.ui_builder/plugins/**'
+      # Страницы форм бенчмарка для демо /benchmark/frameworks/demo: общий код форм и хосты стеков.
+      - 'projects/forms-benchmark/**'
+      - 'projects/react-playground/cross/**'
+      - 'projects/react-playground/src/cross/**'
+      - 'projects/vue-playground/**'
+      - 'projects/angular-playground/**'
       - 'packages/**'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
@@ -79,6 +85,25 @@ jobs:
       - name: Build documentation
         run: npm run build -w reformer-doc
 
+      - name: Формы бенчмарка для демо /benchmark/frameworks/demo
+        # Демо открывает в iframe prod-сборки страниц стеков — те же, что меряет отчёт «ReFormer в
+        # React, Vue и Angular», но с мостом к демо (`--demo`: значения модели и состояние формы
+        # наверх) и под адресом /ReFormer/benchmark-apps/. Нужны рендереры Vue и Angular и их киты:
+        # core, cdk, renderer-json, renderer-react и ui-kit собраны выше. Конфиг Vite у
+        # react-playground импортирует сгенерированные моки — без них сборка не стартует.
+        env:
+          NG_CLI_ANALYTICS: 'false'
+        run: |
+          npm run build -w @reformer/renderer-vue
+          npm run build -w @reformer/renderer-angular
+          npm run build -w @reformer/kit-vuetify
+          npm run build -w @reformer/kit-taiga
+          npm run generate:mocks -w react-playground
+          node projects/forms-benchmark/scripts/build-frameworks.mjs --demo \
+            --base /ReFormer/benchmark-apps --out _benchmark-apps
+          # Карты исходников и граф чанков нужны замерам, не сайту.
+          find _benchmark-apps \( -name '*.map' -o -name 'stats.json' \) -delete
+
       - name: Build builder
         # Vite-SPA. base=/ReFormer/builder/ нужен, чтобы ассеты и Monaco-воркеры
         # (резолвятся относительно base через import.meta.url) грузились из подкаталога.
@@ -99,8 +124,9 @@ jobs:
           npm run plugins:dist -w reformer-builder-playground
           npm run build:plugins -w @reformer/builder
 
-      - name: Assemble site (docs at root, builder under /builder)
-        # У репозитория один Pages-артефакт: docs кладём в корень, builder — в /builder.
+      - name: Assemble site (docs at root, builder under /builder, benchmark forms under /benchmark-apps)
+        # У репозитория один Pages-артефакт: docs кладём в корень, builder — в /builder, страницы
+        # форм бенчмарка для демо — в /benchmark-apps.
         # .nojekyll из docs-сборки попадает в корень и отключает Jekyll для всего сайта.
         run: |
           rm -rf _site
@@ -108,6 +134,8 @@ jobs:
           cp -r projects/reformer-doc/build/. _site/
           mkdir -p _site/builder
           cp -r projects/reformer-builder/dist/. _site/builder/
+          mkdir -p _site/benchmark-apps
+          cp -r _benchmark-apps/. _site/benchmark-apps/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
