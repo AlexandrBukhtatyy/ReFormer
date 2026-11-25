@@ -68,10 +68,10 @@ interface RenderNodeComponentProps<T> {
   /** Proxy формы (опционально — предоставляется wizard-компонентом через props или контекст) */
   form?: FormGroup<T>;
   /**
-   * Компонент-обёртка для полей (опционально).
-   * Переопределяет глобальный fieldWrapper из settings.
-   * Используется в user-space компонентах (RendererFormWizard и т.д.)
-   * при рендеринге дочерних узлов с нестандартным контекстом формы.
+   * Обёртка полей поддерева (опционально) — главнее `settings.fieldWrapper`. Действует на всё
+   * поддерево узла: поля в контейнерах, строках массивов, подформах и в узлах, которые компонент
+   * `__selfManagedChildren` рисует через `renderNode`. Своя обёртка поля в его `componentProps`
+   * главнее. Нужна user-space компонентам, которые рисуют дочерние узлы с нестандартной обёрткой.
    */
   fieldWrapper?: React.ComponentType<FieldWrapperProps>;
 }
@@ -839,16 +839,41 @@ const RenderTextContent = memo(function RenderTextContent({
  */
 const renderSchemaNode: RenderNodeFn = (node, key) => <RenderNodeComponent key={key} node={node} />;
 
-/** Дети контейнера: текст подписывается точечно, узлы рисуются рекурсивно. */
+/** Способы отрисовки с обёрткой поля поддерева — по одному на обёртку, ссылка стабильна. */
+const renderSchemaNodeWith = new WeakMap<React.ComponentType<FieldWrapperProps>, RenderNodeFn>();
+
+/**
+ * `renderNode` для компонента, который ведёт детей сам: обёртка поля, переданная узлу, доходит и
+ * до узлов, которые он рисует.
+ */
+function renderNodeFor(
+  fieldWrapper: React.ComponentType<FieldWrapperProps> | undefined
+): RenderNodeFn {
+  if (fieldWrapper === undefined) return renderSchemaNode;
+  let render = renderSchemaNodeWith.get(fieldWrapper);
+  if (render === undefined) {
+    render = (node, key) => (
+      <RenderNodeComponent key={key} node={node} fieldWrapper={fieldWrapper} />
+    );
+    renderSchemaNodeWith.set(fieldWrapper, render);
+  }
+  return render;
+}
+
+/**
+ * Дети контейнера: текст подписывается точечно, узлы рисуются рекурсивно. Обёртка поля,
+ * переданная узлу, уходит и детям — она действует на всё поддерево.
+ */
 function renderChildren<T>(
   children: readonly CompiledChild[],
-  form: FormGroup<T> | undefined
+  form: FormGroup<T> | undefined,
+  fieldWrapper: React.ComponentType<FieldWrapperProps> | undefined
 ): ReactNode[] {
   return children.map((child) =>
     child.kind === 'text' ? (
       <RenderTextContent key={child.id} parts={child.parts} />
     ) : (
-      <RenderNodeComponent key={child.id} node={child} form={form} />
+      <RenderNodeComponent key={child.id} node={child} form={form} fieldWrapper={fieldWrapper} />
     )
   );
 }
@@ -1010,7 +1035,7 @@ export function RenderNodeComponent<T>({
   const { component: Component, children } = node;
   // Контейнер без компонента — группировка в схеме: рисуются только его дети.
   if (Component === undefined || Component === null || Component === '') {
-    return <>{renderChildren(children, form)}</>;
+    return <>{renderChildren(children, form, fieldWrapperProp)}</>;
   }
 
   // Пропсы узла с переопределением (schema.node(selector).patchProps()) и раскрытыми описателями.
@@ -1056,7 +1081,7 @@ export function RenderNodeComponent<T>({
         {...formProp}
         {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
         {...childrenProp}
-        renderNode={renderSchemaNode}
+        renderNode={renderNodeFor(fieldWrapperProp)}
       />
     );
   }
@@ -1074,7 +1099,7 @@ export function RenderNodeComponent<T>({
       {...(nodeRef !== undefined ? { ref: nodeRef } : {})}
     >
       {/* Текст — такой же ребёнок, как узел: порядок соблюдается, соседние части склеены */}
-      {children.length > 0 ? renderChildren(children, form) : undefined}
+      {children.length > 0 ? renderChildren(children, form, fieldWrapperProp) : undefined}
     </Comp>
   );
 }
