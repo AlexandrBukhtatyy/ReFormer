@@ -14,6 +14,8 @@
  * @module plugins/reformer/codegen/pipeline/rules-code.test
  */
 
+import { fileURLToPath } from 'node:url';
+import * as prettier from 'prettier';
 import { describe, expect, it } from 'vitest';
 import {
   builtinKit,
@@ -150,6 +152,91 @@ function fieldChecks(): FormRules {
   };
 }
 
+/**
+ * Выражения с константами: подвыражение, которое проверка или формула читает несколько раз,
+ * записано немедленно применённой стрелкой. В коде это блок из строк `const` и `return`.
+ */
+function expressionConstants(): FormRules {
+  return {
+    validation: [
+      {
+        target: 'confirm',
+        rules: [],
+        cross:
+          "((left, right) => left !== '' && left === right)(String(values.email ?? '').trim(), String(values.confirm ?? '').trim())",
+        code: 'confirm.mismatch',
+        message: 'Почты не совпадают',
+      },
+      {
+        target: 'references.noPhone',
+        each: 'references',
+        rules: [],
+        // Уровни вложены, хотя константы друг друга не читают: каноническая запись сводит их в один.
+        cross:
+          "((name) => ((phone) => name.length > 0 || phone.length > 0)(String(values.phone ?? '')))(String(values.name ?? ''))",
+      },
+    ],
+    behavior: [
+      {
+        kind: 'compute',
+        target: 'total',
+        sources: [],
+        expr: '((net) => ((discount) => net - discount)(net > 1000 ? net * 0.1 : 0))(model.price * model.qty)',
+      },
+      {
+        kind: 'compute',
+        target: 'references.title',
+        each: 'references',
+        sources: [],
+        expr: "((name) => (name === '' ? '—' : name.toUpperCase()))(String(item.name ?? '').trim())",
+        when: 'item.noPhone !== true',
+      },
+    ],
+    render: [],
+  };
+}
+
+/**
+ * Правила, которые печать выносит в константы модуля: асинхронное правило-стрелка и проверки
+ * своего поля — под условием, с константами выражения, рядом с проверками поля и в строке массива.
+ */
+function ruleConstants(): FormRules {
+  return {
+    validation: [
+      {
+        target: 'email',
+        rules: ['required'],
+        async: "async (value) => (value.endsWith('@test.org') ? { code: 'email.taken' } : null)",
+      },
+      {
+        target: 'phone',
+        rules: [],
+        when: 'model.hasReferences === true',
+        cross: "String(values.phone ?? '').length >= 5",
+        code: 'phone.short',
+        message: 'Слишком короткий номер',
+      },
+      { target: 'phone', rules: ['required'], when: 'model.hasReferences === true' },
+      {
+        target: 'email',
+        rules: [],
+        cross:
+          "((domain) => domain !== 'spam.org')(String(values.email ?? '').split('@')[1] ?? '')",
+        code: 'email.domain',
+        message: 'Почта с этого домена не принимается',
+      },
+      {
+        target: 'references.name',
+        each: 'references',
+        rules: [],
+        cross: "values.name !== 'admin'",
+      },
+    ],
+    behavior: [],
+    render: [],
+  };
+}
+
 interface Case {
   readonly name: string;
   readonly input: CodegenInput;
@@ -163,6 +250,11 @@ const CASES: readonly Case[] = [
   { name: 'wizard-rules', input: { schema: wizardRulesSchema(), rules: wizardRules() } },
   { name: 'corpus', input: { schema: rowRulesSchema(), rules: corpus() } },
   { name: 'field-checks', input: { schema: plainSchema(), rules: fieldChecks() } },
+  {
+    name: 'expression-constants',
+    input: { schema: rowRulesSchema(), rules: expressionConstants() },
+  },
+  { name: 'rule-constants', input: { schema: rowRulesSchema(), rules: ruleConstants() } },
 ].map((c) => ({
   name: c.name,
   input: { ...c.input, formName: FORM_NAME, kit: builtinKit() } as CodegenInput,
@@ -204,6 +296,17 @@ describe.each(CASES)('правила в коде: $name', ({ input }) => {
     expect(unordered(read.rules.render)).toEqual(unordered(expected.render));
   });
 
+  // Печать конструктора без форматтера обязана совпасть с prettier: иначе папку формы после
+  // `prettier --write` билдер считал бы правленной руками.
+  it('файлы правил проходят prettier --check', async () => {
+    const module = await generateModule(BUILTIN_TARGETS, input);
+    const config = (await prettier.resolveConfig(fileURLToPath(import.meta.url))) ?? {};
+    for (const file of module.files.filter((f) => /^validation\/.*\.ts$/.test(f.path))) {
+      const formatted = await prettier.format(file.content, { ...config, filepath: file.path });
+      expect(file.content, file.path).toBe(formatted);
+    }
+  });
+
   // Авторские файлы (тексты, константы, отправка) генерация пишет один раз и не перепечатывает:
   // их байты после первой печати — забота человека, а не неподвижной точки.
   it('печать прочитанного — байт в байт первая печать', async () => {
@@ -219,6 +322,50 @@ describe.each(CASES)('правила в коде: $name', ({ input }) => {
     for (const file of second.files.filter((f) => f.cls === 'derived' || f.regenerable)) {
       expect(file.content, file.path).toBe(first.files.find((f) => f.path === file.path)?.content);
     }
+  });
+});
+
+describe('правила в коде: проверка между полями', () => {
+  it('cross — тело без лишних скобок, файл совпадает с prettier', async () => {
+    const input = CASES.find((c) => c.name === 'corpus')!.input;
+    const module = await generateModule(BUILTIN_TARGETS, input);
+    const form = module.files.find((f) => f.path === 'validation/form.ts')?.content ?? '';
+    // Не влезло в строку — тело переносится без скобок, как у prettier.
+    expect(form).toContain(
+      [
+        '  cross(model.$.confirm, (values) =>',
+        "    values.confirm === values.email ? null : { code: 'confirm.mismatch' }",
+        '  );',
+      ].join('\n')
+    );
+    expect(form).not.toMatch(/\(\([^()]*\) \? null/);
+    const config = (await prettier.resolveConfig(fileURLToPath(import.meta.url))) ?? {};
+    expect(await prettier.format(form, { ...config, filepath: 'validation/form.ts' })).toBe(form);
+  });
+});
+
+describe('правила в коде: константы модуля', () => {
+  it('асинхронное правило и проверка своего поля — константы над схемой, как у сервера', async () => {
+    const input = CASES.find((c) => c.name === 'rule-constants')!.input;
+    const module = await generateModule(BUILTIN_TARGETS, input);
+    expect(module.problems).toEqual([]);
+    const form = module.files.find((f) => f.path === 'validation/form.ts')?.content ?? '';
+    expect(form).toContain("import type { AsyncRule, Rule } from '@reformer/core/validation';");
+    // Ссылка на правило одна на все прогоны схемы: ядро не переспрашивает асинхронное правило при
+    // вводе в соседние поля.
+    expect(form).toMatch(/const emailAsyncRule: AsyncRule<\w+\['email'\]> = async \(value\) =>/);
+    expect(form).toContain('validateAsync(model.$.email, [emailAsyncRule]);');
+    expect(form).not.toMatch(/validateAsync\([^\n]*\[async/);
+    // Проверка своего поля — в списке validate поля, рядом с валидаторами, а не вторым cross.
+    expect(form).toMatch(/const phoneShortRule: Rule<\w+\['phone'\]> = \(value\) =>/);
+    expect(form).toContain('validate(model.$.phone, [phoneShortRule, required()]);');
+    expect(form).toMatch(/Rule<\w+\['references'\]\[number\]\['name'\]>/);
+    expect(form).not.toContain('cross(');
+    expect(form.indexOf('const emailDomainRule')).toBeLessThan(
+      form.indexOf('export const formRules')
+    );
+    const config = (await prettier.resolveConfig(fileURLToPath(import.meta.url))) ?? {};
+    expect(await prettier.format(form, { ...config, filepath: 'validation/form.ts' })).toBe(form);
   });
 });
 

@@ -28,8 +28,18 @@ import type { ModuleLayout, StepInfo } from '../steps';
 
 /** Модуль, напечатанный билдером MCP, в разобранном виде. */
 export interface EmittedModule {
-  /** Строки `import { … } from '…';` — значения; импорт типа формы сюда не входит. */
+  /**
+   * Строки `import { … } from '…';` — значения — и импорт типов правил ядра
+   * (`import type { AsyncRule, Rule } from '@reformer/core/validation';`); импорт типа формы сюда
+   * не входит.
+   */
   readonly imports: readonly string[];
+  /**
+   * Объявления над схемой — правила-константы модуля с комментариями (`const totalCheckRule: Rule<…>
+   * = …`), без отступа. Схема ссылается на них по имени: константа — одна ссылка на правило на все
+   * прогоны схемы, и асинхронное правило ядро не переспрашивает при вводе в соседние поля.
+   */
+  readonly constants: readonly string[];
   /** Строки тела объявления (между `… => {` и `});`), без отступа первого уровня. */
   readonly body: readonly string[];
   /**
@@ -49,6 +59,9 @@ const DECLARATION_PARAMS = /\(\(([^)]*)\) => \{$/;
 /** Закрывающая строка объявления — на нулевой колонке; вложенные блоки стоят с отступом. */
 const DECLARATION_END = '});';
 
+/** Импорт типов правил ядра — им объявлены константы модуля. */
+const RULE_TYPES_IMPORT = /^import type \{[^}]*\} from '@reformer\/core\/validation';$/;
+
 /**
  * Разобрать модуль, напечатанный билдером MCP.
  *
@@ -64,9 +77,18 @@ export function parseEmittedModule(code: string): EmittedModule {
       'вывод билдера @reformer/form-intent не разбирается: нет объявления `export const … => {` … `});`'
     );
   }
+  const head = lines.slice(0, start);
+  const lastImport = head.reduce(
+    (last, line, index) => (line.startsWith('import ') ? index : last),
+    -1
+  );
+  const constants = head.slice(lastImport + 1);
+  while (constants[0] === '') constants.shift();
+  while (constants[constants.length - 1] === '') constants.pop();
   return {
     params: DECLARATION_PARAMS.exec(lines[start] ?? '')?.[1] ?? '',
-    imports: lines.slice(0, start).filter((line) => line.startsWith('import {')),
+    imports: head.filter((line) => line.startsWith('import {') || RULE_TYPES_IMPORT.test(line)),
+    constants,
     // Отступ первого уровня ставит шаблон — там, где он виден вместе с окружающим кодом.
     body: lines.slice(start + 1, end).map((line) => (line.startsWith('  ') ? line.slice(2) : line)),
   };
@@ -166,8 +188,27 @@ function validationOf(rules: readonly ValidationRule[], names: Names): Validatio
       interfaceName: names.TypeName,
       exportName: 'rules',
       typeImport: './types',
+      valueType: (rule) => valueTypeOf(rule, names),
     })
   );
+}
+
+/** Индексный доступ к типу: `['company']['inn']`. */
+const indexOf = (path: string): string =>
+  path
+    .split('.')
+    .filter(Boolean)
+    .map((segment) => `['${segment.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}']`)
+    .join('');
+
+/**
+ * Тип значения поля правила для константы модуля — индексным доступом к типу формы:
+ * `Order['company']['inn']`, у строки массива — `Order['items'][number]['price']`. Отдельных типов
+ * элементов кодоген не печатает, а индексный доступ называет тот же тип без них.
+ */
+function valueTypeOf(rule: ValidationRule, names: Names): string {
+  if (rule.each === undefined) return `${names.TypeName}${indexOf(rule.target)}`;
+  return `${names.TypeName}${indexOf(rule.each)}[number]${indexOf(rule.target)}`;
 }
 
 /** Правила простой формы — все правила валидации одним набором (`formRules`). */

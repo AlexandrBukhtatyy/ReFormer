@@ -15,6 +15,7 @@
 import {
   CLOSE,
   isArrowHead,
+  isConditional,
   matchingClose,
   scan,
   splitTop,
@@ -198,6 +199,59 @@ export function arrowOf(text: string): Arrow | null {
     body: block ? rest.slice(1, -1) : rest,
     block,
   };
+}
+
+/**
+ * Стрелка, у которой тело — тернарный оператор, в записи со скобками или без них.
+ *
+ * prettier ставит скобки вокруг такого тела, пока стрелка в одной строке, и снимает их, когда
+ * переносит тело на следующую строку. Печать кода делает то же, если тело дано без скобок, а
+ * правило хранит стрелку одной строкой — со скобками. `parens: false` — запись для печати,
+ * `true` — запись правила. Не стрелка или тело другое — текст как есть.
+ */
+export function conditionalArrow(text: string, parens: boolean): string {
+  const arrow = arrowOf(text);
+  if (arrow === null || arrow.block) return text;
+  let body = arrow.body.trim();
+  if (body.startsWith('(') && matchingClose(body, 0) === body.length - 1) {
+    const inner = body.slice(1, -1).trim();
+    if (isConditional(inner)) body = inner;
+  }
+  if (!isConditional(body)) return text;
+  return `${arrow.async ? 'async ' : ''}${arrow.params.trim()} => ${parens ? `(${body})` : body}`;
+}
+
+/** Тело-блок из констант и результата: `const a = A; const b = B; return R;`. */
+export interface ConstBlock {
+  /** Константы в порядке объявления: имя и выражение. */
+  readonly locals: readonly { readonly name: string; readonly init: string }[];
+  /** Выражение после `return`. */
+  readonly result: string;
+}
+
+const CONST_STATEMENT = /^const\s+([A-Za-z_$][\w$]*)\s*=(?!=)\s*([\s\S]+)$/;
+const RETURN_STATEMENT = /^return\b\s*([\s\S]+)$/;
+
+/**
+ * Разобрать тело блока, которым генерация печатает выражение с константами: строки `const` без
+ * типа и один `return` в конце. Всё остальное — не такой блок: `null`.
+ *
+ * Комментарий внутри — тоже `null`: в выражении правила ему нет места, и прочитать блок значило
+ * бы потерять его молча.
+ */
+export function constBlockOf(body: string): ConstBlock | null {
+  const statements = statementsOf(body, 0, body);
+  if (statements === null || statements.length < 2) return null;
+  if (statements.some((statement) => statement.comments.length > 0)) return null;
+  const locals: { name: string; init: string }[] = [];
+  for (const statement of statements.slice(0, -1)) {
+    const match = CONST_STATEMENT.exec(statement.text);
+    if (match === null) return null;
+    locals.push({ name: match[1] as string, init: (match[2] as string).trim() });
+  }
+  const result = RETURN_STATEMENT.exec((statements[statements.length - 1] as Statement).text);
+  if (result === null) return null;
+  return { locals, result: (result[1] as string).trim() };
 }
 
 /** Снять внешние скобки, охватывающие текст целиком: `((a))` → `a`. */

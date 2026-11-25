@@ -260,6 +260,146 @@ export const formBehavior = defineFormBehavior<Form>(behaviorRules);
   });
 });
 
+describe('выражение с константами', () => {
+  // Проверку и формулу, читающие подвыражение несколько раз, генерация печатает блоком: строки
+  // `const` и `return`. В правилах это одно выражение — немедленно применённая стрелка.
+  const VALIDATION_BLOCKS = `export const formRules = defineValidation<Form>(({ model, cross }) => {
+  cross(model.$.inn, (values) => {
+    const digits = String(values.inn ?? '');
+    const weights = [2, 4, 10];
+    const sum = weights.reduce((total, weight, index) => total + weight * Number(digits[index]), 0);
+    return digits.length === 10 && sum % 11 === Number(digits[9]) ? null : { code: 'inn.checksum' };
+  });
+  cross(model.$.total, (values) => {
+    // пояснение, которому в выражении правила нет места
+    const net = values.price * values.qty;
+    return net > 0 && net < 1000 ? null : { code: 'total.range' };
+  });
+  cross(model.$.qty, (values) => {
+    let half = values.qty / 2;
+    return half > 1 ? null : { code: 'qty.half' };
+  });
+});`;
+
+  it('блок проверки читается одним выражением; блок с комментарием или не из const — чужой', () => {
+    const read = readRulesFromCode(code(VALIDATION_BLOCKS));
+    expect(read.rules.validation).toEqual([
+      {
+        target: 'inn',
+        rules: [],
+        // Константы, которые друг друга не читают, — параметры одной стрелки; читающая — глубже.
+        cross:
+          "((digits, weights) => ((sum) => digits.length === 10 && sum % 11 === Number(digits[9]))(weights.reduce((total, weight, index) => total + weight * Number(digits[index]), 0)))(String(values.inn ?? ''), [2, 4, 10])",
+        code: 'inn.checksum',
+      },
+    ]);
+    expect(read.files[0]?.foreign.map((piece) => piece.line)).toEqual([8, 13]);
+  });
+
+  it('блок формулы вычисления читается одним выражением, условие пересчёта — как было', () => {
+    const behavior = `
+export function behaviorRules({ model }: BehaviorScope<Form>): void {
+  compute(
+    model.$.total,
+    () => {
+      const net = model.price * model.qty;
+      return net > 1000 ? net * 0.9 : net;
+    },
+    { when: () => model.kind === 'm' },
+  );
+  compute(model.$.fee, () => {
+    console.info(model.price);
+    return model.price * 0.01;
+  });
+}
+
+export const formBehavior = defineFormBehavior<Form>(behaviorRules);
+`;
+    const read = readRulesFromCode({
+      validation: [],
+      behavior: { path: 'behavior/index.ts', text: behavior },
+      constants: [],
+    });
+    expect(read.rules.behavior).toEqual([
+      {
+        kind: 'compute',
+        target: 'total',
+        sources: ['price', 'qty'],
+        expr: '((net) => net > 1000 ? net * 0.9 : net)(model.price * model.qty)',
+        when: "model.kind === 'm'",
+      },
+    ]);
+    expect(read.files[0]?.foreign.map((piece) => piece.line)).toEqual([11]);
+  });
+});
+
+describe('правила-константы модуля', () => {
+  // Генерация выносит проверку своего поля и асинхронное правило-стрелку в константы над схемой,
+  // как сервер MCP: ссылка на правило одна на все прогоны схемы.
+  const CONSTANTS = `import { defineValidation, validate, validateAsync } from '@reformer/core/validation';
+import type { AsyncRule, Rule } from '@reformer/core/validation';
+import { required } from '@reformer/core/validators';
+import type { Form } from '../types';
+
+/** Проверка поля \`total\`: читает только его значение. */
+const totalLimitRule: Rule<Form['total']> = (value) =>
+  value <= 100 ? null : { code: 'total.limit' };
+
+const innLengthRule: Rule<Form['company']['inn']> = (value) => {
+  const digits = String(value ?? '');
+  return digits.length === 10 ? null : { code: 'cross' };
+};
+
+const nameCheckRule: Rule<Form['items'][number]['name']> = (value) => (value !== '' ? null : { code: 'cross' });
+
+const promoAsyncRule: AsyncRule<Form['promo']> = async (value) =>
+  value === 'SALE' ? null : { code: 'promo.unknown' };
+
+const strangeRule: Rule<Form['note']> = (value) => (value ? null : { code: 'note', params: { max: 3 } });
+
+export const formRules = defineValidation<Form>(({ model }) => {
+  validate(model.$.total, [required(), totalLimitRule]);
+  validate(model.$.company.inn, [innLengthRule]);
+  validateAsync(model.$.promo, [promoAsyncRule]);
+  applyEach(model.$.items, ({ model: item }) => {
+    validate(item.$.name, [nameCheckRule]);
+  });
+  validate(model.$.note, [strangeRule]);
+  validateAsync(model.$.total, [totalLimitRule]);
+});`;
+
+  it('константа проверки — обратно условием cross над снимком, асинхронная — выражением async', () => {
+    const read = readRulesFromCode(code(CONSTANTS));
+    expect(read.rules.validation).toEqual([
+      { target: 'total', rules: ['required()'] },
+      { target: 'total', rules: [], cross: 'values.total <= 100', code: 'total.limit' },
+      {
+        target: 'company.inn',
+        rules: [],
+        cross: "((digits) => digits.length === 10)(String(values.company.inn ?? ''))",
+      },
+      // Тело-тернарный оператор, перенесённое печатью на строку ниже, — снова в скобках.
+      {
+        target: 'promo',
+        rules: [],
+        async: "async (value) => (value === 'SALE' ? null : { code: 'promo.unknown' })",
+      },
+      // У строки массива путь значения — от строки.
+      { target: 'items.name', each: 'items', rules: [], cross: "values.name !== ''" },
+    ]);
+  });
+
+  it('константа, которую читатель не разобрал, и константа не того вида — чужой код', () => {
+    const read = readRulesFromCode(code(CONSTANTS));
+    // `strangeRule` несёт параметры текста, `totalLimitRule` в validateAsync — синхронное правило:
+    // подставить их правилом формы молча значило бы потерять смысл.
+    expect(read.files[0]?.foreign.map((piece) => piece.text)).toEqual([
+      'validate(model.$.note, [strangeRule])',
+      'validateAsync(model.$.total, [totalLimitRule])',
+    ]);
+  });
+});
+
 describe('значения источников данных', () => {
   it('варианты и скаляры — значениями, подписи-функции пропускаются', () => {
     const constants = `// constants/anketa.ts

@@ -56,6 +56,7 @@ import {
   quote,
 } from '../print/js';
 import { PRINT_WIDTH, widthOf } from '../print/doc';
+import { conditionalArrow } from '../rules-code/syntax';
 import { SCAFFOLD_NOTE } from '../rules-code/validation';
 import { behaviorView, mentions, type BehaviorView } from './behavior';
 import { messagesView, type MessagesView } from './messages';
@@ -279,6 +280,11 @@ export interface RulesBlockView {
   readonly imports: readonly string[];
   /** Строки тела — без отступа. Пусто — правил нет, шаблон оставляет в теле `TODO`. */
   readonly body: readonly string[];
+  /**
+   * Правила-константы модуля над объявлением (`const totalCheckRule: Rule<…> = …`) — строки без
+   * отступа, уложенные под ширину. Пусто — констант нет.
+   */
+  readonly constants: readonly string[];
   /** Читает ли тело модель: от этого зависит, деструктурируется ли `model` в колбэке. */
   readonly usesModel: boolean;
   /**
@@ -301,6 +307,15 @@ function reflowImport(text: string): string {
 }
 
 /**
+ * Правило-константа с телом-тернарным оператором — без скобок вокруг тела: печать расставит их
+ * так, как prettier, — в строку со скобками, при переносе тела без них.
+ */
+function constantForLayout(line: string): string {
+  const match = /^(const [A-Za-z_$][\w$]*: (?:Rule|AsyncRule)<[^=]*> = )([\s\S]+);$/.exec(line);
+  return match === null ? line : `${match[1]}${conditionalArrow(match[2] ?? '', false)};`;
+}
+
+/**
  * Блок правил из тела, выведенного из правил формы.
  *
  * Строки билдера `@reformer/form-intent` укладываются заново под ширину строки: билдер печатает правило
@@ -315,6 +330,7 @@ function blockOf(code: ValidationCode): RulesBlockView {
   return {
     imports: code.imports.map(reflowImport),
     body: formatBody(code.body, { indent: BODY_INDENT }),
+    constants: formatBody(code.constants.map(constantForLayout)),
     usesModel,
     params: params === '' ? '' : `{ ${params} }`,
   };
@@ -333,7 +349,7 @@ function blockOf(code: ValidationCode): RulesBlockView {
  */
 function scaffoldBlock(required: readonly string[]): RulesBlockView {
   if (required.length === 0) {
-    return { imports: [DEFINE_ONLY], body: [], usesModel: false, params: '' };
+    return { imports: [DEFINE_ONLY], body: [], constants: [], usesModel: false, params: '' };
   }
   return {
     imports: [
@@ -347,6 +363,7 @@ function scaffoldBlock(required: readonly string[]): RulesBlockView {
       ],
       { indent: BODY_INDENT }
     ),
+    constants: [],
     usesModel: true,
     params: '{ model }',
   };

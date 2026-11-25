@@ -21,12 +21,14 @@
  * @module plugins/reformer/core/codegen/rules-code/behavior
  */
 
+import { foldLocals } from '@reformer/form-intent';
 import type { BehaviorIntent, RenderRuleIntent } from '../../form-model/rules';
 import {
   arrayItems,
   arrowOf,
   callOf,
   closeOf,
+  constBlockOf,
   dedent,
   lineAt,
   literalOf,
@@ -98,6 +100,18 @@ function expressionOf(text: string, params: string): string | null {
   if (arrow === null || arrow.block || arrow.async) return null;
   if (arrow.params.replace(/\s+/g, '') !== params.replace(/\s+/g, '')) return null;
   return arrow.body.trim();
+}
+
+/**
+ * Формула вычисления: выражение стрелки без параметров либо блок из строк `const` и `return` —
+ * так генерация печатает формулу с константами. Блок читается одним выражением (`foldLocals`).
+ */
+function formulaOf(text: string): string | null {
+  const arrow = arrowOf(text);
+  if (arrow === null || arrow.async || arrow.params.replace(/\s+/g, '') !== '()') return null;
+  if (!arrow.block) return arrow.body.trim();
+  const block = constBlockOf(arrow.body);
+  return block === null ? null : foldLocals(block.locals, block.result);
 }
 
 /** Тело стрелки-блока с ожидаемыми параметрами; иначе `null`. */
@@ -176,7 +190,7 @@ function linkOf(callee: string, args: readonly string[], scope: Scope): Behavior
     // с условным вычислением не читался бы обратно, и сторож записи отказал бы ему.
     case 'compute': {
       const target = pathOf(a, scope);
-      const expr = expressionOf(b, '()');
+      const expr = formulaOf(b);
       const when = whenOf(c);
       if (target === null || expr === null || when === null || args.length > 3) return null;
       if (args.length === 3 && when === undefined) return null;

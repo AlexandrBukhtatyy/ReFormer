@@ -7,6 +7,10 @@
 <%~ rules.imports.join('\n') %>
 import type { <%= T %> } from '<%= it.step.imports.types %>';
 
+<% if (rules.constants.length > 0) { -%>
+<%~ rules.constants.join('\n') %>
+
+<% } -%>
 /** Правила шага «<%= it.step.title %>»: их проверяет «Далее». */
 <%~ it.format(`export const stepRules = defineValidation<${T}>((${rules.params}) => {
 ${rulesBody}

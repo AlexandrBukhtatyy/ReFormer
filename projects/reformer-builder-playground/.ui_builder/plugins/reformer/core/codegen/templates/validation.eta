@@ -22,6 +22,10 @@ import type { FormValidation } from '@reformer/core';
 <% } -%>
 import type { <%= T %> } from '<%= it.rel('validation', 'types') %>';
 
+<% if (v.block !== null && v.block.constants.length > 0) { -%>
+<%~ v.block.constants.join('\n') %>
+
+<% } -%>
 <% if (v.block !== null) { -%>
 <% if (it.layout.isWizard) { -%>
 /** Правила вне шагов: проверяются целиком, при отправке. */

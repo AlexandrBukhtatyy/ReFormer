@@ -7,7 +7,8 @@
  *
  * - `validate(model.$.path, [required(), minLength(2)])`;
  * - `validateAsync(model.$.path, [выражение])`;
- * - `cross(model.$.path, (values) => (условие ? null : { code: 'код' }))`;
+ * - `cross(model.$.path, (values) => (условие ? null : { code: 'код' }))`; условие с константами —
+ *   блоком из строк `const` и `return`;
  * - `applyEach(model.$.массив, ({ model: item }) => { … })` — правила строки, пути от `item`;
  * - `validateWhen(() => условие, () => { … })`.
  *
@@ -22,13 +23,16 @@
  * @module plugins/reformer/core/codegen/rules-code/validation
  */
 
+import { foldLocals } from '@reformer/form-intent';
 import type { ValidationRuleIntent } from '../../form-model/rules';
 import {
   arrayItems,
   arrowOf,
   callOf,
   closeOf,
+  conditionalArrow,
   conditionalOf,
+  constBlockOf,
   lineAt,
   objectProperties,
   statementsOf,
@@ -78,6 +82,8 @@ export function codeOfChecks(checks: readonly string[]): string | undefined {
 interface Scope {
   readonly each?: string;
   readonly when?: string;
+  /** Правила-константы модуля: схема ссылается на них по имени. */
+  readonly constants?: ReadonlyMap<string, RuleConstantRead>;
 }
 
 /** Ручка поля → путь в модели формы; `null` — не ручка этой области. */
@@ -88,6 +94,11 @@ function targetOf(ref: string, scope: Scope): string | null {
   const path = t.slice(prefix.length);
   if (!PATH.test(path)) return null;
   return scope.each === undefined ? path : `${scope.each}.${path}`;
+}
+
+/** Путь поля от области ручки: `model.$.company.inn` → `company.inn`, `item.$.price` → `price`. */
+function ownPath(ref: string, scope: Scope): string {
+  return ref.trim().slice((scope.each === undefined ? 'model.$.' : 'item.$.').length);
 }
 
 /** Правило с обёртками области. */
@@ -105,17 +116,78 @@ function atom(
   };
 }
 
-/** Тело `cross(…)`: условие и код из `(values) => (C ? null : { code: 'X' })`. */
-function crossOf(text: string): { cross: string; code: string } | null {
+/**
+ * Тело `cross(…)`: условие и код из `(values) => (C ? null : { code: 'X' })`.
+ *
+ * Условие с константами генерация печатает блоком — строки `const` и `return C ? null : …;`.
+ * Блок читается обратно одним выражением (`foldLocals`), каким условие и лежит в правилах.
+ *
+ * @param param - Параметр стрелки: `values` у `cross`, `value` у правила-константы модуля.
+ */
+function crossOf(text: string, param = 'values'): { cross: string; code: string } | null {
   const arrow = arrowOf(text);
-  if (arrow === null || arrow.block || stripParens(arrow.params) !== 'values') return null;
-  const conditional = conditionalOf(stripParens(arrow.body));
+  if (arrow === null || stripParens(arrow.params) !== param) return null;
+  const block = arrow.block ? constBlockOf(arrow.body) : null;
+  if (arrow.block && block === null) return null;
+  const conditional = conditionalOf(stripParens(block?.result ?? arrow.body));
   if (conditional === null || conditional.then !== 'null') return null;
   const props = objectProperties(conditional.otherwise);
   if (props === null || props.length !== 1 || props[0]?.key !== 'code') return null;
   const code = stringOf(props[0].value ?? '');
   if (code === null) return null;
-  return { cross: stripParens(conditional.test), code };
+  const test = stripParens(conditional.test);
+  return { cross: block === null ? test : foldLocals(block.locals, test), code };
+}
+
+/**
+ * Правило-константа модуля, как её печатает генерация над схемой (`hoistRuleConstants`
+ * `@reformer/form-intent`): проверка своего поля `Rule` и асинхронное правило `AsyncRule`.
+ * `null` — объявление правила, которое читатель не разобрал: ссылка на него в схеме — чужой код.
+ */
+type RuleConstantRead =
+  | { readonly type: 'Rule'; readonly check: string; readonly code: string }
+  | { readonly type: 'AsyncRule'; readonly async: string }
+  | null;
+
+/** `const имя: Rule<…> = …` и `const имя: AsyncRule<…> = …` — объявление правила-константы. */
+const RULE_CONSTANT =
+  /^const\s+([A-Za-z_$][\w$]*)\s*:\s*(Rule|AsyncRule)\s*<[^=]*>\s*=(?!=)\s*([\s\S]+)$/;
+
+/** Правила-константы файла по имени. */
+function ruleConstantsOf(text: string): Map<string, RuleConstantRead> {
+  const constants = new Map<string, RuleConstantRead>();
+  for (const statement of statementsOf(text, 0, text) ?? []) {
+    const match = RULE_CONSTANT.exec(statement.text);
+    if (match === null) continue;
+    const [, name = '', type, init = ''] = match;
+    if (type === 'AsyncRule') {
+      // Стрелку, не влезшую в строку, печать переносит после `=>`; правило — та же стрелка одной
+      // строкой, как его пишут правила формы.
+      const arrow = arrowOf(init);
+      const joined =
+        arrow === null || arrow.block
+          ? init.trim()
+          : `${arrow.async ? 'async ' : ''}${arrow.params.trim()} => ${arrow.body.trim()}`;
+      constants.set(name, { type, async: conditionalArrow(joined, true) });
+      continue;
+    }
+    const check = crossOf(init, 'value');
+    constants.set(
+      name,
+      check === null ? null : { type: 'Rule', check: check.cross, code: check.code }
+    );
+  }
+  return constants;
+}
+
+/**
+ * Проверка своего поля из константы — обратно условием `cross` над снимком: `value` — значение
+ * поля, `values.<путь>` — оно же в снимке области (у строки массива путь — от строки). Генерация
+ * выносит в константу только условие, которое читает своё поле через `values.<путь>` и не занимает
+ * имя `value`, поэтому замена обратима.
+ */
+function crossOfOwn(check: string, path: string): string {
+  return check.replace(/(?<![\w$.])value(?![\w$])/g, `values.${path}`);
 }
 
 /** Тело стрелки-блока без параметров либо с одним из ожидаемых списков параметров. */
@@ -157,12 +229,27 @@ function readStatement(
       const checks = arrayItems(second);
       if (target === null || checks === null || call.args.length !== 2) return false;
       // Правило на проверку: код и текст у каждой свои, а одним `validate` поле печатает генерация.
+      const atoms: ValidationRuleIntent[] = [];
       for (const check of checks) {
+        const name = check.trim();
+        if (scope.constants?.has(name) === true) {
+          // Проверка своего поля, вынесенная в константу модуля, — обратно правилом с `cross`.
+          const constant = scope.constants.get(name);
+          if (constant?.type !== 'Rule') return false;
+          atoms.push(
+            atom(target, scope, {
+              cross: crossOfOwn(constant.check, ownPath(first, scope)),
+              ...(constant.code === DEFAULT_CROSS_CODE ? {} : { code: constant.code }),
+            })
+          );
+          continue;
+        }
         const code = codeOfChecks([check]);
-        out.rules.push(
+        atoms.push(
           atom(target, scope, { rules: [check], ...(code === undefined ? {} : { code }) })
         );
       }
+      out.rules.push(...atoms);
       return true;
     }
     case 'validateAsync': {
@@ -171,7 +258,15 @@ function readStatement(
       if (target === null || checks === null || checks.length !== 1 || call.args.length !== 2) {
         return false;
       }
-      out.rules.push(atom(target, scope, { async: checks[0] as string }));
+      // Асинхронное правило, вынесенное в константу модуля, — обратно его выражением.
+      const name = (checks[0] as string).trim();
+      const constant = scope.constants?.get(name);
+      if (scope.constants?.has(name) === true && constant?.type !== 'AsyncRule') return false;
+      out.rules.push(
+        atom(target, scope, {
+          async: constant?.type === 'AsyncRule' ? constant.async : (checks[0] as string),
+        })
+      );
       return true;
     }
     case 'cross': {
@@ -245,6 +340,7 @@ export function readValidationFile(
   options: { readonly scaffold?: boolean } = {}
 ): ValidationFileRead {
   const out: ValidationFileRead = { rules: [], foreign: [], scaffold: false };
+  const constants = ruleConstantsOf(text);
   let declarations = 0;
   let scaffolds = 0;
   for (const match of withoutComments(text).matchAll(DECLARATION)) {
@@ -266,7 +362,7 @@ export function readValidationFile(
       scaffolds += 1;
       continue;
     }
-    readStatements(statements, {}, text, out);
+    readStatements(statements, { constants }, text, out);
   }
   return { ...out, scaffold: declarations > 0 && scaffolds === declarations };
 }

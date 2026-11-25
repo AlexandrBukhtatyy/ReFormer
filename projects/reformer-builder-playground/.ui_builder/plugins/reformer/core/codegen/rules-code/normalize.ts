@@ -18,7 +18,8 @@
  * @module plugins/reformer/core/codegen/rules-code/normalize
  */
 
-import { mergeFieldChecks } from '@reformer/form-intent';
+import { canonicalLocals, mergeFieldChecks } from '@reformer/form-intent';
+import { hoistRuleConstants } from '@reformer/form-intent/emit';
 import type {
   BehaviorIntent,
   FormRules,
@@ -26,7 +27,7 @@ import type {
   ValidationRuleIntent,
 } from '../../form-model/rules';
 import { DEFAULT_EXPR } from './behavior';
-import { literalOf } from './syntax';
+import { conditionalArrow, literalOf } from './syntax';
 import { codeOfChecks, DEFAULT_CROSS_CODE } from './validation';
 
 /** Проверка — вызов: `required` → `required()`, как её печатает генерация. */
@@ -63,7 +64,8 @@ function printedRule(rule: ValidationRuleIntent): ValidationRuleIntent {
       .filter(Boolean)
       .map(callValidator),
     ...(async === undefined ? {} : { async }),
-    ...(cross === undefined ? {} : { cross }),
+    // Условие с константами читается из блока `const`/`return` в записи `canonicalLocals`.
+    ...(cross === undefined ? {} : { cross: canonicalLocals(cross) }),
     ...(code === undefined ? {} : { code }),
     ...(message === undefined ? {} : { message }),
   };
@@ -89,13 +91,49 @@ function validationAtoms(rules: readonly ValidationRuleIntent[]): ValidationRule
       }
     }
   }
-  return mergeFieldChecks(printed).flatMap((rule) => {
-    const base = {
+  // Печать выносит проверку своего поля и асинхронное правило-стрелку в константы модуля
+  // (`hoistRuleConstants`): проверка своего поля встаёт в список `validate` поля после проверок
+  // своей записи, и проверки поля сходятся уже с ней. Нормализация выносит тем же кодом, а атом
+  // константы — снова условие `cross` и выражение `async`, как их возвращает читатель.
+  const hoisted = hoistRuleConstants(printed, {
+    valueType: () => 'unknown',
+    taken: new Set(['model', 'cross', 'item']),
+  });
+  const ownChecks = new Map<string, ValidationRuleIntent>();
+  const asyncRules = new Map<string, string>();
+  hoisted.rules.forEach((rule, index) => {
+    const source = printed[index] as ValidationRuleIntent;
+    if (source.cross !== undefined && rule.cross === undefined) {
+      ownChecks.set(rule.rules[rule.rules.length - 1] as string, source);
+    }
+    if (source.async !== undefined && rule.async !== source.async) {
+      // Константу печать раскладывает сама; правило читается стрелкой одной строкой, тело-тернарный
+      // оператор — в скобках (`conditionalArrow`).
+      asyncRules.set(
+        rule.async as string,
+        conditionalArrow(source.async.replace(/;\s*$/, '').trim(), true)
+      );
+    }
+  });
+  const crossAtom = (base: Base, rule: ValidationRuleIntent): ValidationRuleIntent => {
+    const code = rule.code ?? DEFAULT_CROSS_CODE;
+    return {
+      ...base,
+      rules: [],
+      cross: rule.cross as string,
+      ...(code === DEFAULT_CROSS_CODE ? {} : { code }),
+      ...(rule.message === undefined ? {} : { message: rule.message }),
+    };
+  };
+  return mergeFieldChecks(hoisted.rules).flatMap((rule) => {
+    const base: Base = {
       target: rule.target,
       ...(rule.each === undefined ? {} : { each: rule.each }),
       ...(rule.when === undefined ? {} : { when: rule.when }),
     };
     const atoms: ValidationRuleIntent[] = rule.rules.map((check) => {
+      const own = ownChecks.get(check);
+      if (own !== undefined) return crossAtom(base, own);
       const code = codeOfChecks([check]);
       const message = code === undefined ? undefined : messages.get(code);
       return {
@@ -105,20 +143,16 @@ function validationAtoms(rules: readonly ValidationRuleIntent[]): ValidationRule
         ...(message === undefined ? {} : { message }),
       };
     });
-    if (rule.async !== undefined) atoms.push({ ...base, rules: [], async: rule.async });
-    if (rule.cross !== undefined) {
-      const code = rule.code ?? DEFAULT_CROSS_CODE;
-      atoms.push({
-        ...base,
-        rules: [],
-        cross: rule.cross,
-        ...(code === DEFAULT_CROSS_CODE ? {} : { code }),
-        ...(rule.message === undefined ? {} : { message: rule.message }),
-      });
+    if (rule.async !== undefined) {
+      atoms.push({ ...base, rules: [], async: asyncRules.get(rule.async) ?? rule.async });
     }
+    if (rule.cross !== undefined) atoms.push(crossAtom(base, rule));
     return atoms;
   });
 }
+
+/** Цель атома и его обёртки области. */
+type Base = Pick<ValidationRuleIntent, 'target' | 'each' | 'when'>;
 
 /** Цепочка поля в выражении: `model.price`, `item.qty`; `model.$.x` — ручка, её путь — `x`. */
 const CHAIN = /(?<![\w$.])(model|item)\.((?:\$\.)?[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*)/g;
@@ -173,7 +207,9 @@ function normalizeLink(link: BehaviorIntent): BehaviorIntent {
   const each = WHOLE_ARRAY.has(kind) ? undefined : trimmed(link.each);
   const given = link.sources.map((source) => source.trim()).filter(Boolean);
   const exprText = trimmed(link.expr);
-  const expr = exprText !== undefined && exprText !== DEFAULT_EXPR[kind] ? exprText : undefined;
+  const ownExpr = exprText !== undefined && exprText !== DEFAULT_EXPR[kind] ? exprText : undefined;
+  // Формулу с константами печатает блоком только вычисление — и читается она записью `canonicalLocals`.
+  const expr = kind === 'compute' && ownExpr !== undefined ? canonicalLocals(ownExpr) : ownExpr;
 
   let sources: string[];
   if (kind === 'copyFrom') sources = [full(given[0] ?? 'source', each)];
