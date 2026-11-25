@@ -36,11 +36,11 @@ jobs:
           - stack: vue
             packages: >-
               @reformer/core @reformer/renderer-react @reformer/renderer-json
-              @reformer/renderer-vue
+              @reformer/renderer-vue @reformer/kit-vuetify
           - stack: angular
             packages: >-
               @reformer/core @reformer/renderer-react @reformer/renderer-json
-              @reformer/renderer-angular
+              @reformer/renderer-angular @reformer/kit-taiga
 
     steps:
       - name: Checkout code

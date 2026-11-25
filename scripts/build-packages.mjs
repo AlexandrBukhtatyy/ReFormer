@@ -29,6 +29,8 @@ const PACKAGES = [
   '@reformer/builder-plugin-api',
   '@reformer/builder-toolkit',
   '@reformer/builder-plugin-cli',
+  '@reformer/kit-vuetify',
+  '@reformer/kit-taiga',
   '@reformer/rjsf-kit-theme',
 ];
 

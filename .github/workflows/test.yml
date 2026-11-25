@@ -206,6 +206,23 @@ jobs:
       - name: Build @reformer/kit-hexa-ui builder plugin
         run: npm run build:dist -w @reformer/kit-hexa-ui
 
+      # Киты на Vuetify и Taiga UI (приватные пакеты): компоненты под именами каталога для формы на
+      # renderer-json, которую рисуют рендереры Vue и Angular. Тесты рисуют формы kit-fixtures и
+      # сверяют component-catalog.json с компонентами кита — проверкой каталога из dist контракта,
+      # поэтому идут после @reformer/builder-plugin-api. Их dist сканируют проверки dist ниже.
+      - name: Build @reformer/kit-vuetify
+        run: npm run build -w @reformer/kit-vuetify
+
+      - name: Run @reformer/kit-vuetify tests
+        run: npm run test -w @reformer/kit-vuetify
+
+      - name: Build @reformer/kit-taiga
+        # ng-packagr, как у @reformer/renderer-angular.
+        run: npm run build -w @reformer/kit-taiga
+
+      - name: Run @reformer/kit-taiga tests
+        run: npm run test -w @reformer/kit-taiga
+
       # Тема RJSF из кита — рантайм домена rjsf (приватный пакет). Плагин `reformer.rjsf.render`
       # вкладывает её в свою сборку и находит по dist — поэтому идёт ДО сборки плагинов; его же
       # сканируют «Dist deps ↔ manifest» и «Exports ↔ dist» ниже. Идёт после @reformer/core: тема
