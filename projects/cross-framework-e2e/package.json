@@ -1,0 +1,16 @@
+{
+  "name": "cross-framework-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Одна форма ReFormer в React, Vue и Angular: общие сценарии по DOM-контракту",
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.1",
+    "typescript": "~5.9.3"
+  }
+}
