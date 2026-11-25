@@ -15,7 +15,18 @@ export interface ScreenExpectation {
   selectors: string[];
 }
 
-export function expectedScreen(form: FormId): ScreenExpectation {
+/** Как страница размечает то, что у форм размечено по-разному. */
+export interface ScreenMarkup {
+  /**
+   * Селектор первого шага мастера, когда он текущий. По умолчанию — разметка бенчмарка
+   * (BENCH-CONTRACT §4): `step-current` с `data-step="1"`.
+   */
+  firstStep?: string;
+}
+
+const BENCH_FIRST_STEP = '[data-testid="step-current"][data-step="1"]';
+
+export function expectedScreen(form: FormId, markup: ScreenMarkup = {}): ScreenExpectation {
   switch (form) {
     case 'registration': {
       const values: Record<string, string | boolean> = {};
@@ -41,7 +52,7 @@ export function expectedScreen(form: FormId): ScreenExpectation {
               loanPurpose: 'Ремонт квартиры',
             }
           : { loanType: 'consumer', loanAmount: '', loanTerm: '12', loanPurpose: '' };
-      return { values, selectors: ['[data-testid="step-current"][data-step="1"]'] };
+      return { values, selectors: [markup.firstStep ?? BENCH_FIRST_STEP] };
     }
   }
 }

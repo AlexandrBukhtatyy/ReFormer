@@ -9,7 +9,7 @@
  */
 import { serverConfig, serverControl } from '../api/server';
 import { apiInspect } from '../api/client';
-import { expectedScreen, isScreenReady, type FormId } from './screens';
+import { expectedScreen, isScreenReady, type FormId, type ScreenMarkup } from './screens';
 import { frameEnd, idle, untilFrame, type IdleOptions } from './timing';
 
 export interface BenchWindowApi {
@@ -63,9 +63,16 @@ function benchId(): string {
 /**
  * Смонтировать форму хостом, дождаться готовности первого экрана в `container` и опубликовать
  * `window.__bench`.
+ *
+ * @param markup - Разметка страницы, где она отличается от разметки бенчмарка (мастер китов).
  */
-export function installBench(form: FormId, container: ParentNode, host: BenchHost): BenchWindowApi {
-  const expectation = expectedScreen(form);
+export function installBench(
+  form: FormId,
+  container: ParentNode,
+  host: BenchHost,
+  markup: ScreenMarkup = {}
+): BenchWindowApi {
+  const expectation = expectedScreen(form, markup);
   const isReady = () => isScreenReady(container, expectation);
 
   const bench: BenchWindowApi = {

@@ -1,0 +1,85 @@
+{
+  "format": 2,
+  "version": "1.0",
+  "root": {
+    "component": "$component(Box)",
+    "componentProps": {
+      "className": "b-stack"
+    },
+    "children": [
+      {
+        "component": "$html(div)",
+        "componentProps": {
+          "className": "b-grid"
+        },
+        "children": [
+          {
+            "model": "$model(username)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Имя пользователя",
+              "placeholder": "Логин (латиница)"
+            }
+          },
+          {
+            "model": "$model(email)",
+            "component": "$component(Input)",
+            "componentProps": {
+              "label": "Email",
+              "placeholder": "your@email.com",
+              "type": "email"
+            }
+          },
+          {
+            "model": "$model(password)",
+            "component": "$component(InputPassword)",
+            "componentProps": {
+              "label": "Пароль",
+              "placeholder": "Минимум 8 символов"
+            }
+          },
+          {
+            "model": "$model(confirmPassword)",
+            "component": "$component(InputPassword)",
+            "componentProps": {
+              "label": "Подтвердите пароль",
+              "placeholder": "Повторите пароль"
+            }
+          }
+        ]
+      },
+      {
+        "model": "$model(fullName)",
+        "component": "$component(Input)",
+        "componentProps": {
+          "label": "Полное имя",
+          "placeholder": "Иван Иванов"
+        }
+      },
+      {
+        "model": "$model(phone)",
+        "component": "$component(InputMask)",
+        "componentProps": {
+          "label": "Телефон",
+          "placeholder": "+7 (999) 123-45-67",
+          "mask": "+7 (999) 999-99-99"
+        }
+      },
+      {
+        "model": "$model(captcha)",
+        "component": "$component(CaptchaWidget)",
+        "componentProps": {
+          "label": "Символы с картинки",
+          "placeholder": "Введите 6 символов с картинки"
+        }
+      },
+      {
+        "model": "$model(acceptTerms)",
+        "component": "$component(Checkbox)",
+        "componentProps": {
+          "label": "Я принимаю условия использования"
+        }
+      }
+    ]
+  }
+}

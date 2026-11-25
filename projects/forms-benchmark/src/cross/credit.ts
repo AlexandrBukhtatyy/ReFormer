@@ -1,12 +1,17 @@
 /**
  * Кредитная заявка без слоя представления — для страниц кросс-фреймворк проверки.
  *
- * Документ формы, правила шагов, поведение, тексты ошибок и API — те же, что у участника бенчмарка
- * на `@reformer/renderer-json`: `form.json` (../libs/reformer-json/credit), поток шагов с правилами
- * (../libs/reformer-kit/credit/rules.ts), поведение (../libs/reformer-kit/credit/behavior.ts),
- * общий клиент API. Хост стека (React, Vue, Angular) приносит только реестр своих компонентов и
- * монтирует сборку своим рендерером — поэтому различие в поведении страниц означает различие
- * рендереров, а не форм.
+ * Документ формы (./credit.form.json) — документ участника бенчмарка на `@reformer/renderer-json`
+ * (../libs/reformer-json/credit/form.json) с именами каталога китов (`InputNumber`, `InputMask`,
+ * `FieldArray`, `FormWizard`, …) и без оболочки страницы: корень — визард, заголовок и `<form>`
+ * рисует хост. Поток шагов с правилами (../libs/reformer-kit/credit/rules.ts), поведение
+ * (../libs/reformer-kit/credit/behavior.ts), тексты ошибок и API — те же, что у участника. Хост
+ * стека (React, Vue, Angular) приносит реестр кита своей библиотеки и монтирует сборку своим
+ * рендерером — поэтому различие в поведении страниц означает различие рендереров или китов, а не
+ * форм.
+ *
+ * «Отправить» — кнопка визарда кита: он проверяет форму и зовёт событие `onSubmit` узла `wizard`.
+ * Обработчик ставит поведение формы, текст подтверждения уходит хосту колбэком.
  *
  * Старт страницы (BENCH-CONTRACT §8): справочники и заявка `?application=1` — параллельно, по
  * одному запросу на монтирование. Данные заявки — начальные значения сборки, поэтому форма
@@ -14,7 +19,7 @@
  * (`$dataSource(REGIONS)`, `$dataSource(PROPERTY_TYPES)`), значение приходит позже и реактивно.
  */
 import { arrayOf, createForm, type FormBundle } from '@reformer/core';
-import { defineFormBehavior, hideWhen } from '@reformer/core/behaviors';
+import { defineFormBehavior, hideWhen, onComponentEvent } from '@reformer/core/behaviors';
 import { signal, type ReadonlySignal } from '@reformer/core/signals';
 import {
   composeRegistries,
@@ -40,7 +45,7 @@ import {
 } from '../shared/domain/credit';
 import { creditRules } from '../libs/reformer-kit/credit/behavior';
 import { creditFlow, creditMessages } from '../libs/reformer-kit/credit/rules';
-import rawSchema from '../libs/reformer-json/credit/form.json';
+import rawSchema from './credit.form.json';
 
 export { creditMessages };
 export type { CreditValues, Option };
@@ -94,33 +99,41 @@ function creditInitial(values: CreditValues): CreditValues {
 
 /**
  * Поведение формы и скрытие узлов документа по тем же предикатам, что у условных полей: секцию
- * прячет рендерер, а её поля выключает общее поведение.
+ * прячет рендерер, а её поля выключает общее поведение. Отправку проверенной формы визард кита
+ * отдаёт событием `onSubmit` своего узла: обработчик отправляет заявку и сообщает хосту текст
+ * подтверждения.
  */
-const creditBehavior = defineFormBehavior<CreditValues>((scope) => {
-  creditRules(scope);
-  const { model, schema: nodes } = scope;
-  hideWhen(nodes.node('mortgage'), () => !isMortgage(model.loanType));
-  hideWhen(nodes.node('car'), () => !isCarLoan(model.loanType));
-  hideWhen(nodes.node('employer'), () => !isEmployed(model.employmentStatus));
-  hideWhen(nodes.node('business'), () => !isSelfEmployed(model.employmentStatus));
-  hideWhen(nodes.node('residence'), () => !livesElsewhere(model.sameAsRegistration));
-  hideWhen(nodes.node('properties'), () => !model.hasProperty);
-  hideWhen(nodes.node('existingLoans'), () => !model.hasExistingLoans);
-  hideWhen(nodes.node('coBorrowers'), () => !model.hasCoBorrower);
-  hideWhen(nodes.node('coBorrowersIncome'), () => !model.hasCoBorrower);
-});
+const creditBehavior = (onSubmitted: (message: string) => void) =>
+  defineFormBehavior<CreditValues>((scope) => {
+    creditRules(scope);
+    const { model, schema: nodes } = scope;
+    onComponentEvent(nodes.node('wizard'), 'onSubmit', async (values: CreditValues) => {
+      onSubmitted(await submitCredit(values));
+    });
+    hideWhen(nodes.node('mortgage'), () => !isMortgage(model.loanType));
+    hideWhen(nodes.node('car'), () => !isCarLoan(model.loanType));
+    hideWhen(nodes.node('employer'), () => !isEmployed(model.employmentStatus));
+    hideWhen(nodes.node('business'), () => !isSelfEmployed(model.employmentStatus));
+    hideWhen(nodes.node('residence'), () => !livesElsewhere(model.sameAsRegistration));
+    hideWhen(nodes.node('properties'), () => !model.hasProperty);
+    hideWhen(nodes.node('existingLoans'), () => !model.hasExistingLoans);
+    hideWhen(nodes.node('coBorrowers'), () => !model.hasCoBorrower);
+    hideWhen(nodes.node('coBorrowersIncome'), () => !model.hasCoBorrower);
+  });
 
 /**
  * Сборка формы на реестре компонентов хоста. Владелец сборки — хост: он же зовёт `dispose()`.
  *
- * @param registry - Компоненты стека под именами документа.
+ * @param registry - Компоненты кита стека под именами каталога.
  * @param initial - Начальные значения из {@link CreditStart.load}.
  * @param dictionaries - Справочники страницы из {@link createCreditStart}.
+ * @param onSubmitted - Заявка отправлена: текст подтверждения для `submit-result`.
  */
 export function createCreditForm(
   registry: ComponentRegistry,
   initial: CreditValues,
-  dictionaries: CreditDictionaries
+  dictionaries: CreditDictionaries,
+  onSubmitted: (message: string) => void
 ): FormBundle<CreditValues> {
   return createForm<CreditValues>({
     schema,
@@ -134,7 +147,7 @@ export function createCreditForm(
     initial: creditInitial(initial),
     validation: { strategy: 'afterFirstSubmit', liveAfterStep: 'change' },
     flow: creditFlow,
-    behavior: creditBehavior,
+    behavior: creditBehavior(onSubmitted),
   });
 }
 

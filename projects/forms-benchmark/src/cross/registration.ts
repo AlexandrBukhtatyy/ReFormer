@@ -1,11 +1,13 @@
 /**
  * Форма регистрации без слоя представления — для страниц кросс-фреймворк проверки.
  *
- * Документ формы, правила, тексты ошибок и API — те же, что у участника бенчмарка на
- * `@reformer/renderer-json`: `form.json` (../libs/reformer-json/registration), правила
- * (../libs/reformer-kit/registration-rules.ts), общий клиент API. Хост стека (React, Vue, Angular)
- * приносит только реестр своих компонентов и монтирует сборку своим рендерером — поэтому различие
- * в поведении страниц означает различие рендереров, а не форм.
+ * Документ формы (./registration.form.json) — документ участника бенчмарка на
+ * `@reformer/renderer-json` (../libs/reformer-json/registration/form.json) с именами каталога китов
+ * (`Input`, `InputPassword`, `InputMask`, …) и без оболочки страницы: заголовок, `<form>`, кнопки
+ * отправки и очистки рисует хост. Правила (../libs/reformer-kit/registration-rules.ts), тексты
+ * ошибок и API — те же, что у участника. Хост стека (React, Vue, Angular) приносит реестр кита
+ * своей библиотеки и монтирует сборку своим рендерером — поэтому различие в поведении страниц
+ * означает различие рендереров или китов, а не форм.
  */
 import { createForm, type FormBundle, type SchemaResolver } from '@reformer/core';
 import type { JsonFormSchema } from '@reformer/renderer-json/neutral';
@@ -17,7 +19,7 @@ import {
   type RegistrationValues,
 } from '../shared/domain/registration';
 import { registrationMessages, registrationRules } from '../libs/reformer-kit/registration-rules';
-import rawSchema from '../libs/reformer-json/registration/form.json';
+import rawSchema from './registration.form.json';
 
 export { registrationMessages };
 export type { RegistrationValues };
