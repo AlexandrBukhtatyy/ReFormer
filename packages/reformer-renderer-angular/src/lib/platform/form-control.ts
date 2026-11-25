@@ -57,7 +57,7 @@ const KEYS = [
  *   host: { '[value]': 'field.value()', '[disabled]': 'field.disabled()' },
  * })
  * export class TextInput {
- *   static readonly reformerAdapter = { passControl: true };
+ *   static readonly reformerNeedsControl = true; // нода — входом `control`
  *   readonly control = input.required<FormControl<string>>();
  *   protected readonly field = formControlSignals(this.control);
  * }

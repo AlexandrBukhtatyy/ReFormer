@@ -18,7 +18,12 @@ import {
 import { arrayOf, createForm, createModel } from '@reformer/core';
 import type { FormBundle, FormControl, FormModel, FormSchemaNode } from '@reformer/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FormRenderer, ReformerArrayItem, type ArrayItemSlot } from '../src/public-api';
+import {
+  FormRenderer,
+  ReformerArrayItem,
+  VALUE_CHANGE_ADAPTER,
+  type ArrayItemSlot,
+} from '../src/public-api';
 import { all, get, mount, unmountAll } from './mount';
 
 afterEach(() => {
@@ -59,6 +64,58 @@ class TestInput implements OnDestroy {
 
   ngOnDestroy(): void {
     destroyed.push(this.caption() ?? '');
+  }
+}
+
+/**
+ * Контрол `[(value)]`, которому нужна сама нода: путь поля он читает из неё. Ноду просит статикой
+ * `reformerNeedsControl` — диалект `[(value)]` при этом остаётся.
+ */
+@Component({
+  selector: 'input[testNeedsControl]',
+  template: '',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[value]': 'text()',
+    '[attr.data-path]': 'control().path.value',
+    '(input)': 'emit($event)',
+  },
+})
+class TestNeedsControl {
+  static readonly reformerNeedsControl = true;
+  readonly value = input<unknown>();
+  readonly control = input.required<FormControl<unknown>>();
+  readonly valueChange = output<string>();
+  protected readonly text = computed(() => String(this.value() ?? ''));
+
+  protected emit(event: Event): void {
+    this.valueChange.emit((event.target as HTMLInputElement).value);
+  }
+}
+
+/**
+ * То же через адаптер. Адаптер заменяет диалект целиком: без пары `[(value)]` в нём изменение
+ * пошло бы ключом `onChange`, и выход `valueChange` остался бы без подписчика.
+ */
+@Component({
+  selector: 'input[testPassControl]',
+  template: '',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[value]': 'text()',
+    '[attr.data-path]': 'control().path.value',
+    '(input)': 'emit($event)',
+  },
+})
+class TestPassControl {
+  static readonly reformerAdapter = { ...VALUE_CHANGE_ADAPTER, passControl: true };
+  readonly value = input<unknown>();
+  readonly control = input.required<FormControl<unknown>>();
+  readonly valueChange = output<string>();
+  protected readonly text = computed(() => String(this.value() ?? ''));
+
+  protected emit(event: Event): void {
+    this.valueChange.emit((event.target as HTMLInputElement).value);
   }
 }
 
@@ -449,6 +506,35 @@ describe('входы `FormRenderer`', () => {
     expect(get<HTMLInputElement>(root, 'input').value).toBe('Вера');
     expect(get(root, 'label').getAttribute('data-field')).toBe('name');
 
+    bundle.dispose();
+  });
+});
+
+describe('контрол, которому нужна нода', () => {
+  interface Single {
+    name: string;
+  }
+
+  it.each([
+    ['статика `reformerNeedsControl`', TestNeedsControl],
+    ['адаптер `{ ...VALUE_CHANGE_ADAPTER, passControl: true }`', TestPassControl],
+  ])('%s: нода приходит входом `control`, ввод идёт выходом `valueChange`', async (_, control) => {
+    const bundle = createForm<Single>({
+      initial: { name: 'Анна' },
+      schema: (model) => ({
+        component: TestSection,
+        children: [{ model: model.$.name, component: control }],
+      }),
+    });
+    const { root, settle } = await mount(FormRenderer, [], { form: bundle });
+    const field = get<HTMLInputElement>(root, 'input');
+    expect(field.value).toBe('Анна');
+    expect(field.getAttribute('data-path')).toBe('name');
+
+    typeInto(field, 'Вера');
+    await settle();
+
+    expect(bundle.form.name.value.value).toBe('Вера');
     bundle.dispose();
   });
 });

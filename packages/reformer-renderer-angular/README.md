@@ -113,7 +113,7 @@ import { fieldError, formControlSignals } from '@reformer/renderer-angular';
   `,
 })
 export class TextInput {
-  static readonly reformerAdapter = { passControl: true }; // receive the form node as `control`
+  static readonly reformerNeedsControl = true; // receive the form node as `control`
   static readonly reformerLayout = 'inline-label'; // receive `label` instead of the field wrapper
 
   readonly control = input.required<FormControl<string>>();
@@ -124,6 +124,12 @@ export class TextInput {
   protected readonly error = fieldError(this.control); // text of the issue the field shows now
 }
 ```
+
+`reformerNeedsControl` keeps the `[(value)]` dialect. A `reformerAdapter` static replaces the
+dialect as a whole: `{ passControl: true }` alone binds `value` and `onChange` (an `onChange` input
+or a `change` output), and a `valueChange` output is left unsubscribed. To pass the node through an
+adapter and keep `[(value)]`, spread the default one:
+`{ ...VALUE_CHANGE_ADAPTER, passControl: true }`.
 
 Without such a control, register a field wrapper (`settings.fieldWrapper` of `FormRenderer`, or the
 `FIELD_WRAPPER` registry entry): it receives the `control` and `testId` inputs — those it declared —
