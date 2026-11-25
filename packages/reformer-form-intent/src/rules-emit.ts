@@ -4,8 +4,15 @@
  * проекте: справочник операторов ядра приходит аргументом.
  */
 
-import type { BehaviorIntent, FieldIntent, FormIntent, ValidationRuleIntent } from './intent.js';
+import type {
+  BehaviorIntent,
+  DataSourceIntent,
+  FieldIntent,
+  FormIntent,
+  ValidationRuleIntent,
+} from './intent.js';
 import { NO_CORE_OPERATORS, type CoreOperators } from './core-operators.js';
+import { arrowBodyLines } from './locals.js';
 
 const TS_TYPE: Record<string, string> = {
   string: 'string',
@@ -24,18 +31,109 @@ const TS_TYPE: Record<string, string> = {
  * обязательность даёт `required()`. Без расширения типа сгенерированный `model.ts` не
  * компилировался бы сам по себе: `initialFormModel` присваивал бы `null` полю `number`.
  */
-export function fieldTsType(field: FieldIntent, optional: ReadonlySet<FieldIntent> = NONE): string {
-  const base = baseTsType(field);
+export function fieldTsType(
+  field: FieldIntent,
+  optional: ReadonlySet<FieldIntent> = NONE,
+  sources: readonly DataSourceIntent[] = NO_SOURCES
+): string {
+  const base = choiceTsType(field, sources) ?? baseTsType(field);
   if (field.initialValue !== null && !optional.has(field)) return base;
-  return base.includes('null') ? base : `${base} | null`;
+  return unionMembers(base).includes('null') ? base : `${base} | null`;
 }
 
 const NONE: ReadonlySet<FieldIntent> = new Set();
+const NO_SOURCES: readonly DataSourceIntent[] = [];
 
 function baseTsType(field: FieldIntent): string {
   return field.type === 'date' && !isDatePicker(field)
     ? 'string'
     : (TS_TYPE[field.type] ?? 'unknown');
+}
+
+/**
+ * Значения статических вариантов поля выбора — строковыми литералами TS. Варианты лежат в самом
+ * поле (`componentProps.options`) либо в справочнике intent (`optionsSource` → `dataSources`).
+ * `null` — списка значений нет (варианты приходят с сервера) либо значение варианта — не строка.
+ */
+function optionLiterals(field: FieldIntent, sources: readonly DataSourceIntent[]): string[] | null {
+  const inline = field.componentProps?.options;
+  const given = Array.isArray(inline)
+    ? inline
+    : field.optionsSource !== undefined
+      ? sources.find((source) => source.name === field.optionsSource)?.values
+      : undefined;
+  if (!Array.isArray(given) || given.length === 0) return null;
+  const literals = new Set<string>();
+  for (const option of given) {
+    const value: unknown =
+      option !== null && typeof option === 'object'
+        ? (option as { value?: unknown }).value
+        : option;
+    if (typeof value !== 'string') return null;
+    literals.add(tsString(value));
+  }
+  return [...literals];
+}
+
+/**
+ * Тип поля выбора со статическими вариантами — объединение литералов их значений: опечатку в
+ * условии (`model.customerType === 'persn'`) ловит `tsc`, а не пользователь формы. Мультивыбор —
+ * массив такого объединения, а не `unknown[]`.
+ *
+ * Начальное значение вне вариантов (пустая строка «ничего не выбрано») — тоже значение поля, оно
+ * входит в тип первым. `null` — вариантов списком нет, и тип остаётся общим.
+ */
+function choiceTsType(field: FieldIntent, sources: readonly DataSourceIntent[]): string | null {
+  if (field.type !== 'string' && field.type !== 'array') return null;
+  const literals = optionLiterals(field, sources);
+  if (literals === null) return null;
+  if (field.type === 'array') {
+    const initial = field.initialValue ?? [];
+    const known =
+      Array.isArray(initial) &&
+      initial.every((value) => typeof value === 'string' && literals.includes(tsString(value)));
+    return known ? `Array<${literals.join(' | ')}>` : null;
+  }
+  const initial = field.initialValue === undefined ? '' : field.initialValue;
+  if (initial === null) return literals.join(' | ');
+  if (typeof initial !== 'string') return null;
+  const own = tsString(initial);
+  return (literals.includes(own) ? literals : [own, ...literals]).join(' | ');
+}
+
+/**
+ * Поле выбора, которое компонент не опустошает: радиогруппа и список без крестика сброса
+ * (`clearable`) пишут в модель только значение варианта — `null` от них не приходит.
+ */
+function keepsChoice(field: FieldIntent): boolean {
+  if (/^RadioGroup/.test(field.component)) return true;
+  return /^Select(?:Async)?$/.test(field.component) && field.componentProps?.clearable !== true;
+}
+
+/**
+ * Члены объединения типов верхнего уровня: `'a' | 'b' | null` → три члена, `Array<'a' | 'b'>` —
+ * один. Черта внутри кавычек и скобок член не делит.
+ */
+export function unionMembers(type: string): string[] {
+  const members: string[] = [];
+  let depth = 0;
+  let quote = '';
+  let start = 0;
+  for (let index = 0; index < type.length; index++) {
+    const char = type[index];
+    if (quote) {
+      if (char === '\\') index++;
+      else if (char === quote) quote = '';
+    } else if (char === "'" || char === '"' || char === '`') quote = char;
+    else if (char === '<' || char === '(' || char === '[' || char === '{') depth++;
+    else if (char === '>' || char === ')' || char === ']' || char === '}') depth--;
+    else if (char === '|' && depth === 0) {
+      members.push(type.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  members.push(type.slice(start).trim());
+  return members.filter(Boolean);
 }
 
 /**
@@ -52,7 +150,10 @@ export function optionalText(intent: FormIntent): Set<FieldIntent> {
       .map((v) => (v.each ? `${v.each}[].${rowPath(v.target, v.each)}` : v.target))
   );
   const out = new Set<FieldIntent>();
-  const text = (f: FieldIntent) => baseTsType(f) === 'string';
+  // Поле выбора со списком вариантов, которое компонент не опустошает, — не «текст»: `null` в его
+  // типе означал бы значение, которого в поле не бывает.
+  const text = (f: FieldIntent) =>
+    baseTsType(f) === 'string' && !(keepsChoice(f) && choiceTsType(f, intent.dataSources) !== null);
   for (const f of intent.fields) {
     if (text(f) && !required.has(f.modelPath ?? f.name)) out.add(f);
   }
@@ -110,11 +211,16 @@ export function initialLiteral(field: FieldIntent): string {
  * `minLength(2)`), и раньше первая уходила в код как есть — то есть в `validate(…, [required])`,
  * который не компилируется. Путь «спека → бандл» этого не показывал: анализатор спек всегда
  * пишет со скобками. Показал агент, для которого `required` — самая естественная запись.
+ *
+ * Имя константы модуля (`constants`, см. {@link hoistRuleConstants}) — уже готовое правило, а не
+ * фабрика: оно печатается как есть.
  */
-function callValidator(rule: string): string {
+function callValidator(rule: string, constants: ReadonlySet<string> = NO_NAMES): string {
   const trimmed = rule.trim();
-  return /[()]/.test(trimmed) ? trimmed : `${trimmed}()`;
+  return /[()]/.test(trimmed) || constants.has(trimmed) ? trimmed : `${trimmed}()`;
 }
+
+const NO_NAMES: ReadonlySet<string> = new Set();
 
 /** Имя фабрики правила: `minLength(2)` → `minLength`. */
 export function ruleName(rule: string): string | null {
@@ -132,13 +238,14 @@ export function ruleName(rule: string): string | null {
 function collectValidators(
   rules: readonly ValidationRuleIntent[],
   operators: Readonly<Record<string, string>> = {},
-  core: CoreOperators = NO_CORE_OPERATORS
+  core: CoreOperators = NO_CORE_OPERATORS,
+  constants: ReadonlySet<string> = NO_NAMES
 ): string[] {
   const used = new Set<string>();
   for (const rule of rules) {
     for (const r of rule.rules) {
       const name = ruleName(r);
-      if (name === null || Object.hasOwn(operators, name)) continue;
+      if (name === null || Object.hasOwn(operators, name) || constants.has(r.trim())) continue;
       if (!core.found || core.rules.has(name)) used.add(name);
     }
   }
@@ -207,6 +314,12 @@ export interface ValidationSchemaTsOptions {
    * Без них импортируется из ядра любое имя, не объявленное в `operators`.
    */
   core?: CoreOperators;
+  /**
+   * Тип значения поля правила так, как его называет модуль (`Order['total']`). С ним проверка
+   * своего поля и асинхронное правило-стрелка печатаются константами модуля над схемой
+   * ({@link hoistRuleConstants}); без него — в теле схемы, как раньше.
+   */
+  valueType?: (rule: ValidationRuleIntent) => string | null;
 }
 
 /**
@@ -219,12 +332,19 @@ export interface ValidationSchemaTsOptions {
 export function validationImports(
   rules: readonly ValidationRuleIntent[],
   operators: Readonly<Record<string, string>> | undefined,
-  core: CoreOperators
+  core: CoreOperators,
+  /**
+   * Константы модуля, в которые вынесены правила ({@link hoistRuleConstants}): их имена в списках
+   * проверок — не валидаторы ядра, а код их объявлений тоже может звать свои операторы.
+   */
+  constants: readonly RuleConstant[] = []
 ): {
   ops: string[];
   validators: string[];
   /** Импорты своих операторов — готовыми строками. */
   custom: string[];
+  /** Типы правил ядра, которыми объявлены константы модуля: `Rule`, `AsyncRule`. */
+  types: string[];
 } {
   // `validate` нужен правилам с валидаторами; набор из одних кросс-полевых и асинхронных проверок
   // его не зовёт. Пустой набор оставляет его: заготовка предлагает дописать правила им.
@@ -233,10 +353,15 @@ export function validationImports(
   if (rules.some((r) => r.async)) ops.push('validateAsync');
   if (rules.some((r) => r.when)) ops.push('validateWhen');
   if (rules.some((r) => r.each)) ops.push('applyEach');
+  const names = new Set(constants.map((constant) => constant.name));
   return {
     ops,
-    validators: collectValidators(rules, operators, core),
-    custom: operatorImportLines(operators, validationCode(rules)),
+    validators: collectValidators(rules, operators, core, names),
+    custom: operatorImportLines(operators, [
+      ...validationCode(rules),
+      ...constants.flatMap((constant) => constant.lines),
+    ]),
+    types: [...new Set(constants.map((constant) => constant.type))].sort(),
   };
 }
 
@@ -248,20 +373,206 @@ export function tsString(value: string): string {
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
 }
 
-function crossLine(ref: string, rule: ValidationRuleIntent): string {
+/** Литерал замечания проверки: код, важность и параметры текста. */
+function issueLiteral(
+  rule: ValidationRuleIntent,
+  params: Readonly<Record<string, string>> | undefined = rule.params
+): string {
   const code = (rule.code ?? DEFAULT_CROSS_CODE).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   // Предупреждение и параметры замечания — те же поля `ValidationIssue`, что у валидаторов ядра
   // (калибровка кредитной заявки, A13 и A15: без них предупреждения становились ошибками, а
   // тексты — без чисел).
-  const params = Object.entries(rule.params ?? {}).map(
+  const entries = Object.entries(params ?? {}).map(
     ([name, expr]) => `${/^[A-Za-z_$][\w$]*$/.test(name) ? name : tsString(name)}: ${expr}`
   );
   const issue = [
     `code: '${code}'`,
     ...(rule.severity === 'warning' ? ["severity: 'warning'"] : []),
-    ...(params.length > 0 ? [`params: { ${params.join(', ')} }`] : []),
+    ...(entries.length > 0 ? [`params: { ${entries.join(', ')} }`] : []),
   ];
-  return `cross(${ref}, (values) => ((${rule.cross}) ? null : { ${issue.join(', ')} }));`;
+  return `{ ${issue.join(', ')} }`;
+}
+
+/**
+ * Проверка между полями. Выражение с константами (`./locals`) печатается блоком: строки `const`
+ * и `return` — подвыражение, которое проверка читает несколько раз, записано один раз.
+ */
+function crossLines(ref: string, rule: ValidationRuleIntent): string[] {
+  const issue = issueLiteral(rule);
+  // Тело — тернарный оператор без скобок вокруг: их ставит форматтер (prettier и печать
+  // конструктора) — в строку со скобками, при переносе тела без них. Условие — в скобках, только
+  // когда без них смысл другой.
+  const body = arrowBodyLines(
+    rule.cross ?? 'true',
+    (result) => `${conditionTest(result)} ? null : ${issue}`
+  );
+  if (body.length === 1) return [`cross(${ref}, (values) => ${body[0]});`];
+  return [`cross(${ref}, (values) => ${body[0]}`, ...body.slice(1, -1), '});'];
+}
+
+// ---------------------------------------------------------------------------
+// Правила-константы модуля
+// ---------------------------------------------------------------------------
+
+/** Правило, вынесенное из схемы в константу модуля. */
+export interface RuleConstant {
+  name: string;
+  /** Тип правила ядра: синхронное `Rule` или асинхронное `AsyncRule`. */
+  type: 'Rule' | 'AsyncRule';
+  /** Строки объявления — над схемами модуля. */
+  lines: string[];
+}
+
+/** Параметры {@link hoistRuleConstants}. */
+export interface HoistRuleOptions {
+  /**
+   * Тип значения поля правила — так, как его называет модуль: `Order['company']['inn']`. `null` —
+   * тип назвать нечем, и правило остаётся в схеме как было.
+   */
+  valueType: (rule: ValidationRuleIntent) => string | null;
+  /** Занятые идентификаторы модуля: имена констант их обходят и добавляются сюда же. */
+  taken: Set<string>;
+}
+
+/** Чтение области схемы: снимок `values`, модель или строка массива. */
+const SCOPE_READ = /(?<![\w$.])(?:values|model|item)(?![\w$])/;
+
+/**
+ * Выражение проверки над значением СВОЕГО поля: `values.total <= 100000` → `value <= 100000`.
+ * `null` — выражение поля не читает, читает и другие поля либо само занимает имя `value`.
+ */
+function ownValueExpression(expr: string, path: string): string | null {
+  if (/(?<![\w$.])value(?![\w$])/.test(expr)) return null;
+  const read = new RegExp(
+    `(?<![\\w$.])values\\.${path.replace(/[.$]/g, (char) => `\\${char}`)}(?![\\w$])`,
+    'g'
+  );
+  const own = expr.replace(read, 'value');
+  return own === expr || SCOPE_READ.test(own) ? null : own;
+}
+
+/** Идентификатор константы из кода замечания: `inn.checksum` → `innChecksumRule`. */
+function constantName(source: string, taken: Set<string>): string {
+  const words = source.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const camel = words
+    .map((word, index) =>
+      index === 0 ? word.charAt(0).toLowerCase() + word.slice(1) : capitalize(word)
+    )
+    .join('');
+  const base = `${/^[A-Za-z_$]/.test(camel) ? camel : `field${capitalize(camel)}`}Rule`;
+  let name = base;
+  for (let index = 2; taken.has(name); index++) name = `${base}${index}`;
+  taken.add(name);
+  return name;
+}
+
+const capitalize = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1);
+
+/**
+ * Условие перед `? null : …` — в скобках, только когда без них смысл другой: условие само
+ * тернарное, стрелка, запятая или присваивание. Лишние скобки prettier снимает, и код,
+ * напечатанный без форматтера (кодоген конструктора), разошёлся бы с ним.
+ */
+function conditionTest(expr: string): string {
+  return /=>|,|(?<!\?)\?(?![.?])|(?<![=!<>])=(?![=>])/.test(expr) ? `(${expr})` : expr;
+}
+
+/**
+ * Объявление правила поля — одним оператором: `(value) => (условие ? null : замечание)`.
+ * Выражение с константами (`./locals`) — блоком со строками `const` и `return`.
+ */
+function ruleConstantLines(name: string, type: string, expr: string, issue: string): string[] {
+  const head = `const ${name}: Rule<${type}> = (value) =>`;
+  const body = arrowBodyLines(expr, (result) => `${conditionTest(result)} ? null : ${issue}`);
+  if (body.length === 1) return [`${head} (${body[0]});`];
+  return [`${head} ${body[0]}`, ...body.slice(1, -1), '};'];
+}
+
+/**
+ * Вынести из схемы в константы модуля правила, которым место там, а не в теле схемы.
+ *
+ * - Проверка выражением, которая читает только СВОЁ поле (`values.total <= 100000` у `total`), —
+ *   обычное правило поля `Rule`: оно встаёт в список `validate` рядом с валидаторами, а не вторым
+ *   оператором `cross` на то же поле. `cross` остаётся проверкам, которые читают другие поля.
+ * - Асинхронное правило-стрелка — `AsyncRule`: ядро помнит ответ правила по ссылке на него, и
+ *   стрелка, записанная в теле схемы, — новая ссылка на каждом прогоне: живая проверка звала бы её
+ *   заново при вводе в любое поле. Ссылка на готовую функцию остаётся как есть.
+ *
+ * Возвращает правила, где вынесенное заменено именем константы, и сами константы. Печать тела —
+ * {@link validationRuleParts} с именами констант: имя в списке проверок — не фабрика, скобки ему
+ * не дописываются.
+ */
+export function hoistRuleConstants(
+  rules: readonly ValidationRuleIntent[],
+  options: HoistRuleOptions
+): { rules: ValidationRuleIntent[]; constants: RuleConstant[] } {
+  const constants: RuleConstant[] = [];
+  const out = rules.map((rule): ValidationRuleIntent => {
+    const type = options.valueType(rule);
+    if (type === null) return rule;
+    const path = rowTarget(rule);
+    const label = rule.each !== undefined ? `${rule.each}.${path}` : path;
+    let next = rule;
+
+    if (rule.cross) {
+      const expr = ownValueExpression(rule.cross, path);
+      const params: Record<string, string> = {};
+      // Параметр текста, который поля не читает, — константа: он переносится как есть.
+      const portable = Object.entries(rule.params ?? {}).every(([name, value]) => {
+        const own = SCOPE_READ.test(value) ? ownValueExpression(value, path) : value;
+        if (own !== null) params[name] = own;
+        return own !== null;
+      });
+      if (expr !== null && portable) {
+        const name = constantName(rule.code ?? `${label}.check`, options.taken);
+        constants.push({
+          name,
+          type: 'Rule',
+          lines: [
+            `/** Проверка поля \`${label}\`: читает только его значение. */`,
+            ...ruleConstantLines(name, type, expr, issueLiteral(rule, params)),
+          ],
+        });
+        next = { ...next, rules: [...next.rules, name] };
+        delete next.cross;
+        delete next.params;
+      }
+    }
+
+    const asyncRule = rule.async?.trim();
+    if (
+      asyncRule &&
+      !/^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/.test(asyncRule) &&
+      !/(?<![\w$.])(?:model|item|cross|values)(?![\w$])/.test(asyncRule)
+    ) {
+      const name = constantName(rule.code ?? `${label}.async`, options.taken);
+      constants.push({
+        name,
+        type: 'AsyncRule',
+        lines: [
+          `/** Асинхронная проверка поля \`${label}\`. Константа модуля: ядро помнит ответ по ссылке на правило. */`,
+          `const ${name}: AsyncRule<${type}> = ${asyncRule.replace(/;\s*$/, '')};`,
+        ],
+      });
+      next = { ...next, async: name };
+    }
+    return next;
+  });
+  return { rules: out, constants };
+}
+
+/**
+ * Константы в порядке первого упоминания в теле схемы: читатель кода возвращает правила в порядке
+ * операторов схемы, и печать прочитанного обязана положить константы туда же, куда первая печать.
+ */
+export function inOrderOfUse(
+  constants: readonly RuleConstant[],
+  body: readonly string[]
+): RuleConstant[] {
+  const text = body.join('\n');
+  const at = (name: string) =>
+    text.search(new RegExp(`(?<![\\w$])${name.replace(/\$/g, '\\$')}(?![\\w$])`));
+  return [...constants].sort((a, b) => at(a.name) - at(b.name));
 }
 
 /**
@@ -340,18 +651,37 @@ export function mergeFieldChecks(rules: readonly ValidationRuleIntent[]): Valida
  * безусловным, а импорт `validateWhen` оставался неиспользованным (`noUnusedLocals`).
  */
 export function validationRuleBlock(rule: ValidationRuleIntent): string {
+  return schemaBody([validationRulePart(rule)]).join('\n');
+}
+
+/**
+ * Часть тела схемы: строки кода (без отступа тела) и условие, под которым они действуют. Условие
+ * в строки не входит — обёртку `validateWhen` ставит {@link schemaBody}, одну на все части с этим
+ * условием.
+ */
+export interface SchemaPart {
+  when?: string;
+  lines: string[];
+}
+
+/** Одно правило intent → часть тела схемы. `constants` — имена констант-правил модуля. */
+export function validationRulePart(
+  rule: ValidationRuleIntent,
+  constants: ReadonlySet<string> = NO_NAMES
+): SchemaPart {
   const each = rule.each;
   const target = rowTarget(rule);
   const ref = each !== undefined ? `item.$.${target}` : `model.$.${target}`;
 
   let lines: string[] = [];
   if (rule.rules.length > 0) {
-    lines.push(`validate(${ref}, [${rule.rules.map(callValidator).join(', ')}]);`);
+    const checks = rule.rules.map((check) => callValidator(check, constants));
+    lines.push(`validate(${ref}, [${checks.join(', ')}]);`);
   }
   if (rule.async) {
     lines.push(`validateAsync(${ref}, [${rule.async}]);`);
   }
-  if (rule.cross) lines.push(crossLine(ref, rule));
+  if (rule.cross) lines.push(...crossLines(ref, rule));
   // Свой оператор валидации — вызов как есть: что и как он проверяет, знает только он.
   if (rule.call) lines.push(`${rule.call.replace(/;\s*$/, '')};`);
   if (each !== undefined) {
@@ -360,10 +690,48 @@ export function validationRuleBlock(rule: ValidationRuleIntent): string {
     const params = rule.cross ? '{ model: item, cross }' : '{ model: item }';
     lines = wrapBlock(`applyEach(model.$.${each}, (${params}) => {`, lines);
   }
-  if (rule.when) {
-    lines = wrapBlock(`validateWhen(() => ${rule.when}, () => {`, lines);
+  const when = rule.when?.trim();
+  return when ? { when, lines } : { lines };
+}
+
+/** Правила набора → части тела схемы: проверки одного поля слиты ({@link mergeFieldChecks}). */
+export function validationRuleParts(
+  rules: readonly ValidationRuleIntent[],
+  constants: ReadonlySet<string> = NO_NAMES
+): SchemaPart[] {
+  return mergeFieldChecks(rules).map((rule) => validationRulePart(rule, constants));
+}
+
+/**
+ * Тело схемы из частей — блоками с отступом тела.
+ *
+ * Части с одним условием — один `validateWhen` на месте первой из них: `validateWhen` принимает
+ * колбэк с любым числом операторов, а условие, повторённое на каждое поле раздела, читается хуже
+ * одного блока «при этом условии проверяется вот что». Раньше форма заказа печатала 15 блоков при
+ * шести разных условиях. Условия сравниваются текстом.
+ */
+export function schemaBody(parts: readonly SchemaPart[]): string[] {
+  const groups = new Map<string, string[]>();
+  const order: (string[] | { when: string })[] = [];
+  for (const part of parts) {
+    if (part.when === undefined) {
+      order.push(part.lines);
+      continue;
+    }
+    const group = groups.get(part.when);
+    if (group !== undefined) {
+      group.push(...part.lines);
+      continue;
+    }
+    groups.set(part.when, [...part.lines]);
+    order.push({ when: part.when });
   }
-  return lines.map((line) => `  ${line}`).join('\n');
+  return order.map((entry) => {
+    const lines = Array.isArray(entry)
+      ? entry
+      : wrapBlock(`validateWhen(() => ${entry.when}, () => {`, groups.get(entry.when) ?? []);
+    return lines.map((line) => `  ${line}`).join('\n');
+  });
 }
 
 /**
@@ -389,10 +757,27 @@ export function buildValidationSchemaTs(
   rules: readonly ValidationRuleIntent[],
   opts: ValidationSchemaTsOptions
 ): string {
-  const { ops, validators, custom } = validationImports(
-    rules,
+  const hoisted =
+    opts.valueType === undefined
+      ? { rules: [...rules], constants: [] }
+      : hoistRuleConstants(rules, {
+          valueType: opts.valueType,
+          taken: new Set([
+            'model',
+            'cross',
+            'item',
+            opts.exportName,
+            opts.interfaceName,
+            ...Object.keys(opts.operators ?? {}),
+            ...rules.flatMap((rule) => rule.rules.flatMap((check) => ruleName(check) ?? [])),
+          ]),
+        });
+  const constantNames = new Set(hoisted.constants.map((constant) => constant.name));
+  const { ops, validators, custom, types } = validationImports(
+    hoisted.rules,
     opts.operators,
-    opts.core ?? NO_CORE_OPERATORS
+    opts.core ?? NO_CORE_OPERATORS,
+    hoisted.constants
   );
 
   const lines: string[] = [];
@@ -402,20 +787,25 @@ export function buildValidationSchemaTs(
     lines.push(' */');
   }
   lines.push(`import { ${ops.join(', ')} } from '@reformer/core/validation';`);
+  if (types.length > 0) {
+    lines.push(`import type { ${types.join(', ')} } from '@reformer/core/validation';`);
+  }
   if (validators.length > 0) {
     lines.push(`import { ${validators.join(', ')} } from '@reformer/core/validators';`);
   }
   lines.push(...custom);
   lines.push(`import type { ${opts.interfaceName} } from '${opts.typeImport}';`);
   lines.push('');
+  const body = schemaBody(validationRuleParts(hoisted.rules, constantNames));
+  for (const constant of inOrderOfUse(hoisted.constants, body)) lines.push(...constant.lines, '');
   lines.push(
-    `export const ${opts.exportName} = defineValidation<${opts.interfaceName}>((${schemaParams(rules)}) => {`
+    `export const ${opts.exportName} = defineValidation<${opts.interfaceName}>((${schemaParams(hoisted.rules)}) => {`
   );
 
   if (rules.length === 0) {
     lines.push('  // Правил в intent не было — добавьте их здесь.');
   }
-  for (const rule of mergeFieldChecks(rules)) lines.push(validationRuleBlock(rule));
+  lines.push(...body);
 
   lines.push('});');
   return lines.join('\n') + '\n';
@@ -459,7 +849,11 @@ function resetWhenOptions(b: BehaviorIntent, intent: FormIntent): string {
     (f) => (f.modelPath ?? f.name) === b.target || f.name === b.target
   );
   const given = b.options !== undefined && 'resetValue' in b.options;
-  if (field === undefined || given || fieldTsType(field, optionalText(intent)).includes('null')) {
+  if (
+    field === undefined ||
+    given ||
+    unionMembers(fieldTsType(field, optionalText(intent), intent.dataSources)).includes('null')
+  ) {
     return json ? `, ${json}` : '';
   }
   const resetValue = `resetValue: ${initialLiteral(field)}`;
@@ -566,6 +960,16 @@ export function behaviorExtraImports(intent: FormIntent, withNodes: boolean): st
   ];
 }
 
+/**
+ * Тело формулы: выражение либо блок со строками `const` и `return`, когда формула объявляет
+ * константы (`./locals`). Строки блока — с отступом тела поведения.
+ */
+function formulaBody(expr: string): string {
+  const body = arrowBodyLines(expr);
+  if (body.length === 1) return body[0] as string;
+  return [body[0], ...body.slice(1).map((line) => `  ${line}`)].join('\n');
+}
+
 function renderBehavior(b: BehaviorIntent, intent: FormIntent, scope = 'model'): string {
   const path = (p: string): string => (scope === 'item' && b.each ? rowPath(p, b.each) : p);
   const target = `${scope}.$.${path(b.target)}`;
@@ -573,7 +977,7 @@ function renderBehavior(b: BehaviorIntent, intent: FormIntent, scope = 'model'):
   const opts = b.options ? `, ${JSON.stringify(b.options)}` : '';
   switch (b.kind) {
     case 'compute':
-      return `  compute(${target}, () => ${b.expr ?? 'undefined'}${computeWhen(b)});`;
+      return `  compute(${target}, () => ${formulaBody(b.expr ?? 'undefined')}${computeWhen(b)});`;
     case 'computeFrom': {
       // У связи строки параметры — по путям от строки: `items.qty` переименованием не считается.
       const { params, renamed } = callbackParams(b.sources.map(path));

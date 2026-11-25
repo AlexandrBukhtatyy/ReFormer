@@ -45,6 +45,14 @@ export {
   ruleName,
   type ValidationSchemaTsOptions,
 } from './rules-emit.js';
+export {
+  canonicalLocals,
+  foldLocals,
+  unfoldLocals,
+  RESERVED_LOCAL_NAMES,
+  type ExpressionLocal,
+  type UnfoldedExpression,
+} from './locals.js';
 export { collectSteps, stepKeyOf, type SchemaDocNode, type SchemaDocument } from './layout.js';
 export {
   NO_UI_KIT,
