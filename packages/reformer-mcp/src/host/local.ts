@@ -28,6 +28,22 @@ const INTENT_FILE = 'form.intent.json';
 /** Файл крупнее этого в снимок не идёт: в каталоге формы так велики только чужие файлы. */
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
+/**
+ * Отпечатки каталогов: объект каталога один, пока файл не менялся (`local/kit-catalog`), поэтому
+ * отпечаток считается раз на версию каталога, а не на каждый вызов.
+ */
+const hashes = new WeakMap<object, string>();
+
+/** Каталог кита с отпечатком: по отпечатку сервис узнаёт уже виденный каталог. */
+function withHash(json: unknown): { readonly hash: string; readonly json: unknown } | null {
+  if (json === undefined || json === null) return null;
+  const known = typeof json === 'object' ? hashes.get(json) : undefined;
+  const hash =
+    known ?? createHash('sha256').update(JSON.stringify(json)).digest('hex').slice(0, 32);
+  if (!known && typeof json === 'object') hashes.set(json, hash);
+  return { hash, json };
+}
+
 export interface LocalHost {
   directory(key: string): HostDirectory;
   above(key: string, name: string): string[];
@@ -68,6 +84,7 @@ export function createLocalHost(start?: string): LocalHost {
         label: directory.label,
         files,
         above: { [INTENT_FILE]: directory.above?.(INTENT_FILE) ?? [] },
+        ...(directory.kitCatalog ? { kit: withHash(directory.kitCatalog()) } : {}),
       };
     },
     above(key, name) {
@@ -77,12 +94,7 @@ export function createLocalHost(start?: string): LocalHost {
     spec: (ref) => specs.read(ref),
     specBase: () => specs.describe?.() ?? process.cwd(),
     issuesLocation: () => issues.location(),
-    uiKitCatalog() {
-      const json = loadUiKitCatalog();
-      if (json === undefined || json === null) return null;
-      const hash = createHash('sha256').update(JSON.stringify(json)).digest('hex').slice(0, 32);
-      return { hash, json };
-    },
+    uiKitCatalog: () => withHash(loadUiKitCatalog()),
     async typecheck(key, files) {
       const opened = open(key);
       if (!opened.ok) return { status: 'unavailable', reason: opened.reason };

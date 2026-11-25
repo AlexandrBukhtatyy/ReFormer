@@ -37,11 +37,18 @@ export interface PlatformStatus {
   readonly packages: readonly PackageLocationStatus[];
   /** Проверка типов `form_build`: у браузера её нет вовсе. */
   readonly typecheck: { readonly available: boolean; readonly detail: string };
-  /** Каталог компонентов `@reformer/ui-kit`. */
+  /**
+   * Каталог компонентов кита приложения (`@reformer/ui-kit`, `@reformer/kit-vuetify`, … — любой
+   * зависимости со входом `./catalog`).
+   */
   readonly uiKitCatalog: {
     readonly found: boolean;
     readonly components: number;
     readonly source: string | null;
+    /** Пакет кита (`kit.package` каталога). */
+    readonly package?: string | null;
+    /** Фреймворк кита (`kit.framework` каталога; нет поля — `react`). */
+    readonly framework?: 'react' | 'vue' | 'angular' | null;
   };
   /** Базы поиска пакетов, по порядку (CLI). */
   readonly bases?: readonly string[];

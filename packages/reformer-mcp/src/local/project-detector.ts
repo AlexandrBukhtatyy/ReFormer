@@ -11,6 +11,18 @@ import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname, join, sep } from 'path';
 import { reportKnowledgeProblem } from './problems.js';
 
+/** Фреймворк приложения или кита. */
+export type KitFramework = 'react' | 'vue' | 'angular';
+
+/** Фреймворк приложения по его зависимостям: `@angular/core` — Angular, `vue` — Vue, иначе React. */
+export function frameworkOfDependencies(
+  dependencies: Readonly<Record<string, string>>
+): KitFramework {
+  if ('@angular/core' in dependencies) return 'angular';
+  if ('vue' in dependencies) return 'vue';
+  return 'react';
+}
+
 export interface ProjectStack {
   /** Absolute path to the resolved project package.json (or null if not found). */
   projectRoot: string | null;
@@ -21,6 +33,8 @@ export interface ProjectStack {
   workspaceRoot: boolean;
   /** All dependencies (deps + devDeps + peerDeps) keyed by name → version range. */
   allDependencies: Record<string, string>;
+  /** Фреймворк приложения по зависимостям; приложение не нашлось — `react`. */
+  framework: KitFramework;
   /** Whether @reformer/ui-kit is in deps. */
   hasUiKit: boolean;
   /** Whether @reformer/cdk is in deps. */
@@ -117,6 +131,7 @@ export function detectProjectStack(startDir?: string): ProjectStack {
       projectRoot: null,
       workspaceRoot: false,
       allDependencies: {},
+      framework: 'react',
       hasUiKit: false,
       hasCdk: false,
       hasRendererReact: false,
@@ -161,6 +176,7 @@ export function detectProjectStack(startDir?: string): ProjectStack {
     projectRoot,
     workspaceRoot,
     allDependencies: allDeps,
+    framework: frameworkOfDependencies(allDeps),
     hasUiKit: '@reformer/ui-kit' in allDeps,
     hasCdk: '@reformer/cdk' in allDeps,
     hasRendererReact: '@reformer/renderer-react' in allDeps,

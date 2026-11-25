@@ -44,6 +44,14 @@ function createFakeCore(): Server {
   server.setRequestHandler(CallToolRequestSchema, (request): CallToolResult => {
     const host = (request.params._meta?.[HOST_META_KEY] ?? {}) as HostRequest;
     seen.push(host);
+    // Кэш сервиса вытеснил каталог кита: по одному отпечатку его не взять — просьба прислать.
+    const form = host.dirs?.form;
+    if (request.params.arguments?.kitMiss === true && form?.ok && form.kit?.json === undefined) {
+      return {
+        content: [{ type: 'text', text: 'need' }],
+        _meta: { [HOST_META_KEY]: { v: 1, need: { kits: ['form'] } } },
+      };
+    }
     // Ядру нужен ещё каталог `shared`, которого в аргументах нет: клиент должен его добрать.
     const shared = host.dirs?.shared;
     if (!shared) {
@@ -155,6 +163,42 @@ describe('тонкий клиент', () => {
     // Следующий вызов несёт состояние, которое вернул сервис.
     await agent.callTool({ name: 'execute', arguments: { dir: 'form' } });
     expect(seen.at(-1)!.state).toEqual({ calls: 1 });
+    await agent.close();
+  });
+
+  it('кит каталога формы: целиком один раз, дальше отпечаток; промах сервиса — целиком снова', async () => {
+    const agent = await connectAgent();
+    // Приложение на Vue со своим китом: пакет с каталогом в `node_modules`.
+    const kitRoot = join(project, 'node_modules', '@acme', 'kit');
+    mkdirSync(kitRoot, { recursive: true });
+    writeFileSync(
+      join(kitRoot, 'package.json'),
+      JSON.stringify({ name: '@acme/kit', exports: { './catalog': './catalog.json' } })
+    );
+    writeFileSync(
+      join(kitRoot, 'catalog.json'),
+      JSON.stringify({ kit: { package: '@acme/kit', framework: 'vue' }, components: [] })
+    );
+    writeFileSync(
+      join(project, 'package.json'),
+      JSON.stringify({ dependencies: { vue: '3', '@acme/kit': '1' } })
+    );
+    const kitOf = () => {
+      const form = seen.at(-1)!.dirs?.form;
+      return form?.ok ? form.kit : undefined;
+    };
+
+    await agent.callTool({ name: 'execute', arguments: { dir: 'form' } });
+    const first = kitOf();
+    expect(first).toMatchObject({ json: { kit: { package: '@acme/kit', framework: 'vue' } } });
+
+    await agent.callTool({ name: 'execute', arguments: { dir: 'form' } });
+    expect(kitOf()).toEqual({ hash: first!.hash });
+
+    const before = seen.length;
+    await agent.callTool({ name: 'execute', arguments: { dir: 'form', kitMiss: true } });
+    expect(seen.length).toBeGreaterThan(before + 1);
+    expect(kitOf()).toMatchObject({ hash: first!.hash, json: { kit: { package: '@acme/kit' } } });
     await agent.close();
   });
 

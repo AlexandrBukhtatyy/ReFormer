@@ -44,7 +44,8 @@ import type {
   TypeDiagnostic,
 } from '../contract/workspace.js';
 import { DEFAULT_FORM_DIR } from '../contract/workspace.js';
-import { locatePackages, TYPECHECK_ROOT_ENV } from './package-locator.js';
+import { kitCatalogPaths, loadKitCatalog } from './kit-catalog.js';
+import { defaultPackageBases, locatePackages, TYPECHECK_ROOT_ENV } from './package-locator.js';
 import { reportKnowledgeProblem } from './problems.js';
 import { detectProjectStack } from './project-detector.js';
 
@@ -403,6 +404,12 @@ function openDirectory(root: string, path: string): FormDirectory {
         if (current === root || dirname(current) === current) break;
       }
       return found;
+    },
+    kitCatalog() {
+      // Кит — приложения, в котором лежит форма (ближайший `package.json` с зависимостями над её
+      // каталогом), а не проекта рабочего каталога: в монорепо они разные.
+      const app = detectProjectStack(path).projectRoot;
+      return loadKitCatalog(kitCatalogPaths(path, defaultPackageBases(app ? [app] : []))) ?? null;
     },
   };
 }

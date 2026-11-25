@@ -154,6 +154,17 @@ export async function connectServiceProxy(options: ServiceProxyOptions): Promise
   const activeDirs = new Set<string>();
   const knownCatalogs = new Set<string>();
 
+  /**
+   * Снимок каталога для черновика: каталог кита приложения — одним отпечатком, если сервис его уже
+   * видел или он едет в этом же вызове каталогом вызова (обычно это один и тот же кит).
+   */
+  const compact = (draft: Draft, entry: HostDirectory): HostDirectory => {
+    if (!entry.ok || !entry.kit) return entry;
+    const { hash } = entry.kit;
+    const inCall = draft.uiKitCatalog?.hash === hash && draft.uiKitCatalog.json !== undefined;
+    return knownCatalogs.has(hash) || inCall ? { ...entry, kit: { hash } } : entry;
+  };
+
   const draftFor = (args: Record<string, unknown> | undefined): Draft => {
     const catalog = local.uiKitCatalog();
     const draft: Draft = {
@@ -179,15 +190,21 @@ export async function connectServiceProxy(options: ServiceProxyOptions): Promise
       for (const dir of literalsOf(args.code, 'dir')) dirs.add(dirKeyOf(dir));
       for (const spec of literalsOf(args.code, 'specPath')) specs.add(spec);
     }
-    for (const dir of dirs) draft.dirs[dir] = local.directory(dir);
+    for (const dir of dirs) draft.dirs[dir] = compact(draft, local.directory(dir));
     for (const spec of specs) draft.specs[spec] = local.spec(spec);
     return draft;
   };
 
   const fulfil = async (draft: Draft, need: HostNeed): Promise<void> => {
-    for (const dir of need.dirs ?? []) draft.dirs[dir] = local.directory(dir);
+    for (const dir of need.dirs ?? []) draft.dirs[dir] = compact(draft, local.directory(dir));
+    // Отпечатка сервис не знает (кэш процесса сервиса вытеснил каталог): каталог кита целиком.
+    for (const dir of need.kits ?? []) {
+      const entry = draft.dirs[dir];
+      const fresh = local.directory(dir);
+      draft.dirs[dir] = entry?.ok && fresh.ok ? { ...entry, kit: fresh.kit ?? null } : fresh;
+    }
     for (const { dir, name } of need.above ?? []) {
-      const entry = draft.dirs[dir] ?? local.directory(dir);
+      const entry = draft.dirs[dir] ?? compact(draft, local.directory(dir));
       draft.dirs[dir] = entry.ok
         ? { ...entry, above: { ...entry.above, [name]: local.above(dir, name) } }
         : entry;
@@ -210,6 +227,9 @@ export async function connectServiceProxy(options: ServiceProxyOptions): Promise
     if (Array.isArray(dirs))
       for (const dir of dirs) if (typeof dir === 'string') activeDirs.add(dir);
     if (draft.uiKitCatalog?.hash) knownCatalogs.add(draft.uiKitCatalog.hash);
+    for (const entry of Object.values(draft.dirs)) {
+      if (entry.ok && entry.kit) knownCatalogs.add(entry.kit.hash);
+    }
   };
 
   /** Вызов с добором данных: до {@link MAX_HOST_ROUNDS} раундов. */

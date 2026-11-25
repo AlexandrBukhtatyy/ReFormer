@@ -16,7 +16,7 @@ import type { PlatformStatus } from '../contract/status.js';
 import { describeTypecheck } from './form-workspace.js';
 import { defaultPackageBases, locatePackage } from './package-locator.js';
 import { knowledgeProblems } from './problems.js';
-import { uiKitCatalogSummary } from './ui-kit-catalog.js';
+import { kitCatalogSummary } from './kit-catalog.js';
 
 /** Пакеты, о версиях которых клиент сообщает сервису. Порядок — как у знания сервиса. */
 export const REPORTED_PACKAGES = [
@@ -42,7 +42,7 @@ function ownVersion(): string {
 /** Статус локальной стороны; `server` — сам клиент, сервис заменит его собой. */
 export function localPlatformStatus(): PlatformStatus {
   const bases = defaultPackageBases();
-  const catalog = uiKitCatalogSummary();
+  const catalog = kitCatalogSummary();
   return {
     profile: 'node',
     server: { version: ownVersion(), buildId: null },
@@ -60,6 +60,8 @@ export function localPlatformStatus(): PlatformStatus {
       found: catalog.path !== null,
       components: catalog.components,
       source: catalog.path,
+      package: catalog.package,
+      framework: catalog.framework,
     },
     bases,
     problems: knowledgeProblems(),

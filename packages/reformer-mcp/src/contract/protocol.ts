@@ -75,6 +75,13 @@ export type HostDirectory =
       readonly files: Readonly<Record<string, string>>;
       /** Файлы с этим именем выше каталога, до корня проекта: имя → пути, ближний первым. */
       readonly above?: Readonly<Record<string, readonly string[]>>;
+      /**
+       * Каталог кита приложения, в котором лежит каталог формы (`FormDirectory.kitCatalog`): в
+       * монорепо он свой у каждого приложения. Как {@link HostRequest.uiKitCatalog}: `json` — только
+       * если сервис этого отпечатка ещё не видел; `null` — кита у приложения нет; поля нет — клиент
+       * его не знает, берётся каталог вызова.
+       */
+      readonly kit?: { readonly hash: string; readonly json?: unknown } | null;
     };
 
 /** Что клиент кладёт в вызов. */
@@ -89,8 +96,9 @@ export interface HostRequest {
   /** Относительно чего резолвится ссылка на спеку — для сообщения «не найдено». */
   readonly specBase?: string;
   /**
-   * Каталог кита. `hash` — отпечаток, `json` — сам каталог (сервис кэширует по отпечатку и просит
-   * его только при промахе); `null` — кит не установлен.
+   * Каталог кита. `hash` — отпечаток: первые 32 шестнадцатеричных знака SHA-256 от
+   * `JSON.stringify(json)`; `json` — сам каталог (сервис пересчитывает отпечаток, кэширует по нему
+   * и просит каталог только при промахе); `null` — кит не установлен.
    */
   readonly uiKitCatalog?: { readonly hash: string; readonly json?: unknown } | null;
   /** Результаты проверки типов: ключ из `need.typechecks` → результат. */
@@ -107,6 +115,8 @@ export interface HostNeed {
   readonly above?: ReadonlyArray<{ readonly dir: string; readonly name: string }>;
   readonly specs?: readonly string[];
   readonly uiKitCatalog?: boolean;
+  /** Каталоги формы, чей каталог кита нужен целиком: отпечатка сервис не знает. */
+  readonly kits?: readonly string[];
   /** Проверить типы этих файлов в каталоге `dir` и вернуть результат под ключом `key`. */
   readonly typechecks?: ReadonlyArray<{
     readonly key: string;
