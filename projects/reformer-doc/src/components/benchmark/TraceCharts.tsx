@@ -33,7 +33,8 @@ import {
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import Translate, { translate } from '@docusaurus/Translate';
-import { LIB_ORDER, isDashed, libStyle } from './colors';
+import { isDashed, libStyle } from './colors';
+import { useParticipants } from './participants';
 import { type BenchText, useBenchText } from './i18n';
 import {
   CURSOR_STEPS,
@@ -56,13 +57,7 @@ import {
   valueAtOrBefore,
   zoomView,
 } from './traceGeometry';
-import {
-  type BenchForm,
-  type TraceData,
-  type TraceForm,
-  type TraceMetric,
-  libLabel,
-} from './types';
+import { type BenchForm, type TraceData, type TraceForm, type TraceMetric } from './types';
 import bench from './bench.module.css';
 import styles from './traces.module.css';
 
@@ -110,7 +105,7 @@ type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; dat
 
 /** Файл трейсов один на обе вкладки форм — грузится один раз. */
 let pending: Promise<TraceData> | null = null;
-function loadTraces(): Promise<TraceData> {
+function loadFormsTraces(): Promise<TraceData> {
   pending ??= import('@site/src/data/forms-benchmark-traces.json').then((m) => m.default);
   return pending;
 }
@@ -118,12 +113,19 @@ function loadTraces(): Promise<TraceData> {
 export default function TraceCharts({
   form,
   measuredRuns,
+  load: loadTraces = loadFormsTraces,
 }: {
   form: BenchForm;
   /** Прогоны отчёта на странице — трейсы, записанные для другого отчёта, помечаются. */
   measuredRuns: string[];
+  /**
+   * Файл трейсов отчёта (по умолчанию — отчёта библиотек). Импорт — статической строкой у
+   * страницы: сборщику нужен путь, а повторные вызовы страница кэширует сама.
+   */
+  load?: () => Promise<TraceData>;
 }): ReactNode {
   const t = useBenchText();
+  const { order, label: libLabel } = useParticipants();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   useEffect(() => {
     let alive = true;
@@ -134,13 +136,13 @@ export default function TraceCharts({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [loadTraces]);
 
   const trace =
     load.status === 'ready' ? (load.data.forms.find((f) => f.id === form.id) ?? null) : null;
   const stale =
     load.status === 'ready' && load.data.measuredRuns.join() !== [...measuredRuns].join();
-  const libs = trace ? LIB_ORDER.filter((lib) => trace.libs[lib]) : [...LIB_ORDER];
+  const libs = trace ? order.filter((lib) => trace.libs[lib]) : [...order];
   const [active, setActive] = useState<string | null>(null);
 
   return (
@@ -226,6 +228,7 @@ function TracePlots({
   form: BenchForm;
   t: BenchText;
 }): ReactNode {
+  const { label: libLabel } = useParticipants();
   const lines = useMemo(() => decodeLines(trace), [trace]);
   const yMax = useMemo(
     () =>
@@ -410,7 +413,7 @@ function TracePlots({
 
   // Текст подсказки для экранного диктора — с задержкой, чтобы не зачитывать каждый шаг.
   const [spoken, setSpoken] = useState('');
-  const tipText = cursor ? tooltipText(trace, lines, libs, x, hit, form, t) : '';
+  const tipText = cursor ? tooltipText(trace, lines, libs, x, hit, form, t, libLabel) : '';
   useEffect(() => {
     const id = setTimeout(() => setSpoken(tipText), 250);
     return () => clearTimeout(id);
@@ -691,6 +694,7 @@ const TraceChart = memo(function TraceChart({
   active,
   plotRef,
 }: ChartProps): ReactNode {
+  const { short: shortLabel } = useParticipants();
   const paths = useMemo(
     () =>
       Object.fromEntries(
@@ -785,10 +789,6 @@ const TraceChart = memo(function TraceChart({
   );
 });
 
-/** Подписи на концах линий — короткие: колонка справа узкая. */
-const shortLabel = (lib: string) =>
-  lib === 'reformer-core' ? 'core' : lib === 'reformer-json' ? 'JSON' : libLabel(lib);
-
 function phaseLine(hit: ReturnType<typeof phaseAt>, form: BenchForm, t: BenchText): string {
   if (!hit) return '';
   const title = t.phaseTitle(form, hit.phase.id, hit.phase.title);
@@ -847,7 +847,8 @@ function tooltipText(
   x: number,
   hit: ReturnType<typeof phaseAt>,
   form: BenchForm,
-  t: BenchText
+  t: BenchText,
+  libLabel: (lib: string) => string
 ): string {
   const rows = libs.map(
     (lib) =>
@@ -885,6 +886,7 @@ function Tooltip({
   plotRef: RefObject<HTMLDivElement | null>;
   layerRef: RefObject<HTMLDivElement | null>;
 }): ReactNode {
+  const { label: libLabel } = useParticipants();
   const ref = useRef<HTMLDivElement>(null);
   // Справа от перекрестья, у правого края окна — слева от него; по вертикали — у курсора. Размер
   // известен только после отрисовки, поэтому позиция ставится до кадра, а до неё подсказка скрыта.
@@ -950,6 +952,7 @@ function SourceNote({
   stale: boolean;
   t: BenchText;
 }): ReactNode {
+  const { label: libLabel } = useParticipants();
   const date = trace.builtAt
     ? new Intl.DateTimeFormat(t.isEn ? 'en-US' : 'ru-RU', {
         day: 'numeric',
@@ -1058,6 +1061,7 @@ function StatsTable({
   libs: string[];
   t: BenchText;
 }): ReactNode {
+  const { label: libLabel } = useParticipants();
   return (
     <details className={styles.more}>
       <summary>

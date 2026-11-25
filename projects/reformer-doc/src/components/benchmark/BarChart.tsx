@@ -12,7 +12,8 @@ import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import { translate } from '@docusaurus/Translate';
 import { libStyle } from './colors';
-import { type Cell, fmt, fmtRatio, libLabel, roleOf, sigMark } from './types';
+import { useParticipants } from './participants';
+import { type Cell, fmt, fmtRatio, sigMark } from './types';
 import styles from './bench.module.css';
 
 export interface BarRow {
@@ -63,6 +64,8 @@ export default function BarChart({
   showRatio = true,
   format,
 }: Props): ReactNode {
+  // Подписи и роли — набора участников страницы (participants.ts).
+  const { label, role: roleOf } = useParticipants();
   const show = format ?? ((v: number | null) => fmt(v, unit));
   const present = rows.filter((r) => r.cell[0] !== null);
   const max = Math.max(
@@ -91,14 +94,14 @@ export default function BarChart({
           const isBest = lib === best;
           const tip =
             q25 === null || q75 === null
-              ? `${libLabel(lib)}: ${show(med)}${suffix}`
+              ? `${label(lib)}: ${show(med)}${suffix}`
               : translate(
                   {
                     id: 'benchmark.chart.tooltip',
                     message: '{lib}: медиана {median}, IQR {q25}–{q75}{unit}',
                   },
                   {
-                    lib: libLabel(lib),
+                    lib: label(lib),
                     median: `${show(med)}${suffix}`,
                     q25: show(q25),
                     q75: show(q75),
@@ -118,7 +121,7 @@ export default function BarChart({
                 isBest && styles.barBest
               )}
             >
-              <span className={styles.barName}>{libLabel(lib)}</span>
+              <span className={styles.barName}>{label(lib)}</span>
               <span className={styles.barTrack} aria-hidden="true">
                 <span className={styles.barFill} style={{ width: `${pos(med)}%` }} />
                 {!compact && q25 !== null && q75 !== null && (

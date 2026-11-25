@@ -77,6 +77,10 @@ docs/benchmarks/forms/
 # …и данные /benchmark/forms на сайте из того же отчёта (site-data.mjs, `npm run bench:site-data`):
 # листья записаны в строку — prettier развернул бы их, и каждая публикация оставляла бы diff
 projects/reformer-doc/src/data/forms-benchmark*.json
+# …и отчёт «ReFormer в React, Vue и Angular» с данными /benchmark/frameworks (тот же конвейер,
+# `npm run bench:frameworks:report -- --publish`)
+docs/benchmarks/frameworks/
+projects/reformer-doc/src/data/frameworks-benchmark*.json
 # …и данные страницы «Замеры: с MCP и без» (их пишет стенд замеров MCP):
 # прогоны записаны по строке — prettier развернул бы их, и каждая перегенерация оставляла бы diff
 projects/reformer-doc/src/data/mcp-benchmark*.json

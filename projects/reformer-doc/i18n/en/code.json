@@ -1205,7 +1205,7 @@
     "message": "Loading the chart…"
   },
   "benchmark.traces.missing": {
-    "message": "No traces for this form — the values are in the tables above."
+    "message": "No traces for this form — the values are in the tables of the “All phases” section."
   },
   "benchmark.traces.aria": {
     "message": "Trace charts: {form}. Left and right arrows move the cursor, Shift — by 10 steps, Home and End — to the edges, Esc — hide; plus and minus — zoom, 0 — the whole trace."
@@ -1256,7 +1256,7 @@
     "message": "The charts are a single traced pass per participant from a separate run {traceRun} on the same page build (git {sha}, built {date}), CPU {cpu}x: not a median but the shape of the curve. The table numbers are medians of run {run}."
   },
   "benchmark.traces.sourceSame": {
-    "message": "The charts are a single traced pass per participant from run {run}, CPU {cpu}x: not a median but the shape of the curve. Exact numbers are in the tables above."
+    "message": "The charts are a single traced pass per participant from run {run}, CPU {cpu}x: not a median but the shape of the curve. Exact numbers are in the tables of the “All phases” section."
   },
   "benchmark.traces.sourceOtherBuild": {
     "message": "⚠️ The charts are a single traced pass per participant from run {traceRun} on a different page build (git {sha}, built {date}), CPU {cpu}x; the table numbers are medians of run {run}. The forms may have changed between builds."
@@ -1505,7 +1505,7 @@
     "message": "ReFormer measured on real runs"
   },
   "benchmark.hub.lead": {
-    "message": "How ReFormer looks next to other form libraries, what the MCP server gives an AI assistant and — soon — how the library works in React, Vue and Angular. Every report has an open methodology, and the numbers come from runs, including those where ReFormer falls behind."
+    "message": "How ReFormer looks next to other form libraries, what the MCP server gives an AI assistant and how the library works in React, Vue and Angular. Every report has an open methodology, and the numbers come from runs, including those where ReFormer falls behind."
   },
   "benchmark.hub.forms.kicker": {
     "message": "Form libraries"
@@ -1555,6 +1555,141 @@
   },
   "benchmark.hub.frameworks.description": {
     "message": "The same forms — registration and a credit application — on three stacks: React with @reformer/ui-kit, Vue with Vuetify, Angular with Taiga UI. Behaviour is checked by shared scenarios."
+  },
+  "benchmark.hub.frameworks.meta": {
+    "message": "{date} · CPU {cpu}x · medians over {runs} runs"
+  },
+  "benchmark.hub.frameworks.ready": {
+    "message": "until the registration form is ready, across the three stacks"
+  },
+  "benchmark.hub.frameworks.bundle": {
+    "message": "registration page JS, gzip"
+  },
+  "benchmark.hub.frameworks.parity": {
+    "message": "cross-e2e scenarios passed on the same builds"
+  },
+  "benchmark.hub.frameworks.statsNote": {
+    "message": "Ranges span the three stacks — no ranking"
+  },
+  "benchmark.frameworks.page.title": {
+    "message": "ReFormer in React, Vue and Angular"
+  },
+  "benchmark.frameworks.page.description": {
+    "message": "The same ReFormer forms on three stacks — React with @reformer/ui-kit, Vue with Vuetify, Angular with Taiga UI: load, typing, wizard, arrays, remount, bundle and code size."
+  },
+  "benchmark.frameworks.hero.kicker": {
+    "message": "Frameworks · {date}"
+  },
+  "benchmark.frameworks.hero.title": {
+    "message": "ReFormer in React, Vue and Angular"
+  },
+  "benchmark.frameworks.hero.lead": {
+    "message": "The same forms — registration with a captcha and a six-step credit application — from one JSON document with shared rules, behaviour and API, drawn by the ReFormer renderer of each framework and a component library. The measurement scenarios are those of the form-library report: load, typing, clicks, the wizard, arrays and remount."
+  },
+  "benchmark.frameworks.hero.toMethod": {
+    "message": "How to read the numbers"
+  },
+  "benchmark.frameworks.fact.stack": {
+    "message": "{b}: ReFormer + framework + component library"
+  },
+  "benchmark.frameworks.fact.stackBold": {
+    "message": "the whole stack"
+  },
+  "benchmark.frameworks.fact.parity": {
+    "message": "same behaviour: {b} cross-e2e scenarios on the same builds before measuring"
+  },
+  "benchmark.frameworks.fact.noRank": {
+    "message": "{b}: median and spread, no “best” and no significance"
+  },
+  "benchmark.frameworks.fact.noRankBold": {
+    "message": "no ranking"
+  },
+  "benchmark.frameworks.env.shared": {
+    "message": "Shared by the stacks"
+  },
+  "benchmark.frameworks.results.lead": {
+    "message": "Key metrics of each form: the bar is the median over {runs} runs, the whisker is the interquartile range. Lower is better. There is no “best” mark and no significance: the stacks differ not only in the framework but also in the component library, so a difference in the numbers is about the whole stack."
+  },
+  "benchmark.frameworks.phases.lead": {
+    "message": "A cell is the median over {runs} runs at CPU {cpu}x (each run is reduced first: for example, the median latency over all keys of the phase), below it is the q25–q75 spread. Lower is better. The JS (CDP) rows understate Vue — see the methodology. Expand a phase to see the charts."
+  },
+  "benchmark.frameworks.traces.lead": {
+    "message": "JS heap, DOM nodes and event listeners over the whole form scenario — one line per stack. Phases are aligned: a phase's measurement window is a band as wide as the slowest stack, and between the bands is a gap without measurement. Hover the chart or press ←/→ — the tooltip shows every stack's values at that moment. The DOM node count depends on the component library's markup."
+  },
+  "benchmark.frameworks.bundle.lead": {
+    "message": "A separate prod build of each page, the static closure from the page's modules. The bundle is the whole page: the framework, the component library, the renderer, the ReFormer core and the form code. The registry registers the whole component library — as an app on the JSON renderer does. Compression is computed for the whole entry; package attribution is minified bytes by sourcemap."
+  },
+  "benchmark.frameworks.bundle.chartTitle": {
+    "message": "Page JS, gzip"
+  },
+  "benchmark.frameworks.bundle.router": {
+    "message": "“Form: shared code” is the form document, rules, behaviour and fake API, the same on the three stacks. @angular/router in the Angular page's bundle comes with @taiga-ui/core (dialog portals); the page itself does not use the router. React and Vue are built by Vite (Rollup), Angular by the Angular CLI (esbuild)."
+  },
+  "benchmark.frameworks.code.lead": {
+    "message": "The code an app writes — the sources that end up in the page bundle (by sourcemap): lines without blanks and comments after prettier. “Form” is shared by the three stacks: the JSON document, rules, behaviour and API. “Stack glue” is each stack's own: the component library registry, the page entry and the app's components (captcha, computed value). The code of the component libraries and renderers is packages and is not counted."
+  },
+  "benchmark.frameworks.code.col.stack": {
+    "message": "Stack"
+  },
+  "benchmark.frameworks.code.col.kitTs": {
+    "message": "Stack glue TS"
+  },
+  "benchmark.frameworks.method.stack.title": {
+    "message": "The whole stack."
+  },
+  "benchmark.frameworks.method.stack.text": {
+    "message": "A participant is ReFormer, the framework and the component library together: React with @reformer/ui-kit, Vue with Vuetify, Angular with Taiga UI. The libraries draw fields differently — their own markup, styles, pop-up lists — so the numbers are about the stack, not the framework alone, and they do not isolate the cost of the ReFormer renderer."
+  },
+  "benchmark.frameworks.method.shared.title": {
+    "message": "One form."
+  },
+  "benchmark.frameworks.method.shared.text": {
+    "message": "The form's JSON document, rules, behaviour, step flow and fake API are shared by the three stacks; the component registry and the page entry differ. The measurement scenarios are those of the form-library report; they follow one DOM contract of the kits and pick list options through the library's driver."
+  },
+  "benchmark.frameworks.method.parity.title": {
+    "message": "Parity before measuring."
+  },
+  "benchmark.frameworks.method.parity.text": {
+    "message": "Before measuring, Playwright runs {n} cross-e2e scenarios on the same prod builds: errors, server checks, masks, the wizard, arrays and the canonical payload. Measuring starts only after a green run."
+  },
+  "benchmark.frameworks.method.remount.title": {
+    "message": "Remount."
+  },
+  "benchmark.frameworks.method.remount.text": {
+    "message": "Each mount creates a new framework root with the form: createRoot in React, createApp in Vue, createComponent in Angular. The component library is set up once per page (a Vuetify instance, Taiga UI providers). The form is built after the initial values load — compare “mount until ready”."
+  },
+  "benchmark.frameworks.method.stats.title": {
+    "message": "No ranking."
+  },
+  "benchmark.frameworks.method.stats.text": {
+    "message": "Each run is reduced (for example, the median over all keys of a phase); over {runs} runs come the median and the interquartile range. There is no significance and no “best” mark in a row: with different component libraries a ranking would read as a ranking of frameworks, which this measurement does not show."
+  },
+  "benchmark.frameworks.method.renders.title": {
+    "message": "No render counter."
+  },
+  "benchmark.frameworks.method.renders.text": {
+    "message": "In the form-library report renders are counted by the React DevTools hook; Vue and Angular have no such counter, so this report has no renders section."
+  },
+  "benchmark.frameworks.method.cdp.title": {
+    "message": "JS by CDP."
+  },
+  "benchmark.frameworks.method.cdp.text": {
+    "message": "“JS execution (CDP)” and “JS per key” come from the ScriptDuration counter of the Chrome DevTools Protocol, and it does not count code in promise reactions (Promise.then). Vue re-renders in Promise.then, so these rows understate Vue several times over and are not comparable with the other stacks; they are left out of the key results. Input and click latencies, Total Blocking Time and layout do not have this error."
+  },
+  "benchmark.frameworks.method.limits.title": {
+    "message": "Limitations."
+  },
+  "benchmark.frameworks.method.limits.text": {
+    "message": "CPU throttling in Chromium slows only the main thread — the cost of large bundles is understated. One machine and one browser; absolute numbers from different sessions are not comparable, compare the stacks within the report: in a run they alternate in shuffled order. Neighbouring processes are not sampled on Windows — the “foreign load” column is empty."
+  },
+  "benchmark.frameworks.method.link.cross": {
+    "message": "the shared form code of the three stacks"
+  },
+  "benchmark.frameworks.method.link.contract": {
+    "message": "the kits' DOM contract and list drivers"
+  },
+  "benchmark.frameworks.method.link.build": {
+    "message": "prod builds of the stacks' pages"
   },
   "benchmark.hub.soon": {
     "message": "In progress"

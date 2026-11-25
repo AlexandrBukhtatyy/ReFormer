@@ -1,0 +1,2090 @@
+{
+  "schema": 1,
+  "meta": {
+    "generatedAt": "2026-11-25T16:36:53.347Z",
+    "runs": ["2026-11-25T13-46-34Z_registration_dc4d67c","2026-11-25T12-54-22Z_credit_dc4d67c"],
+    "machine": {
+      "cpu": "11th Gen Intel(R) Core(TM) i7-11700 @ 2.50GHz",
+      "cores": 16,
+      "memoryGb": 32,
+      "platform": "win32 10.0.26200"
+    },
+    "browser": "chromium 143.0.7499.4",
+    "headless": "new headless (channel: chromium)",
+    "node": "v24.9.0",
+    "iterations": 10,
+    "warmup": 1,
+    "cpuRates": [4],
+    "cadenceMs": 80,
+    "seed": 314932795,
+    "git": {"sha":"dc4d67c2","dirty":true},
+    "versions": {
+      "@reformer/core": "6.0.0",
+      "@reformer/renderer-json": "6.0.0",
+      "@reformer/renderer-react": "6.0.0",
+      "@reformer/ui-kit": "6.0.0",
+      "@reformer/renderer-vue": "0.0.0",
+      "@reformer/kit-vuetify": "0.0.0",
+      "@reformer/renderer-angular": "0.0.0",
+      "@reformer/kit-taiga": "0.0.0",
+      "react": "19.2.1",
+      "vue": "3.5.46",
+      "vuetify": "4.3.4",
+      "@angular/core": "21.2.26",
+      "@taiga-ui/core": "5.34.0"
+    }
+  },
+  "participants": [
+    {"id":"react","label":"React","role":"subject","stack":"React + @reformer/ui-kit"},
+    {"id":"vue","label":"Vue","role":"subject","stack":"Vue + Vuetify"},
+    {"id":"angular","label":"Angular","role":"subject","stack":"Angular + Taiga UI"}
+  ],
+  "forms": [
+    {
+      "id": "registration",
+      "title": "регистрация с капчей",
+      "runId": "2026-11-25T13-46-34Z_registration_dc4d67c",
+      "cpu": 4,
+      "libs": ["react","vue","angular"],
+      "failures": 0,
+      "headline": [
+        {"phase":"load","metric":"ready"},
+        {"phase":"load","metric":"tbt"},
+        {"phase":"typing-pristine","metric":"keyProc"},
+        {"phase":"typing-live","metric":"keyProc"},
+        {"phase":"typing-live","metric":"keyProcP95"},
+        {"phase":"submit-invalid","metric":"settle"},
+        {"phase":"remount","metric":"mountReady"},
+        {"phase":"load","metric":"heap"}
+      ],
+      "metrics": {
+        "load/ready": {"label":"Готовность формы (от начала навигации)","unit":"мс"},
+        "load/fcp": {"label":"First Contentful Paint","unit":"мс"},
+        "load/script": {"label":"Выполнение JS (CDP ScriptDuration)","unit":"мс"},
+        "load/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "load/heap": {"label":"JS heap после GC","unit":"КБ"},
+        "load/nodes": {"label":"DOM-узлы","unit":""},
+        "load/hydrate": {"label":"Гидратация: ответ префилла → готово","unit":"мс"},
+        "typing/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "typing/keyProcP95": {"label":"Клавиша → конец обработки (p95 прогона)","unit":"мс"},
+        "typing/keyFrame": {"label":"Клавиша → конец кадра (медиана)","unit":"мс"},
+        "typing/scriptPerKey": {"label":"JS на клавишу (CDP)","unit":"мс"},
+        "typing/layoutPerKey": {"label":"Layout + style на клавишу","unit":"мс"},
+        "typing/slowEvents": {"label":"События ≥ 16 мс (Event Timing)","unit":"шт"},
+        "typing/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "click/clickFrame": {"label":"Клик → конец кадра","unit":"мс"},
+        "click/settle": {"label":"Клик → UI затих","unit":"мс"},
+        "click/script": {"label":"Выполнение JS (CDP)","unit":"мс"},
+        "click/layout": {"label":"Layout + style","unit":"мс"},
+        "async/settle": {"label":"Ввод → UI затих (вкл. debounce 300 мс и сеть 20 мс)","unit":"мс"},
+        "async/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "async/script": {"label":"Выполнение JS за фазу (CDP)","unit":"мс"},
+        "remount/mountSync": {"label":"Монтирование: рендер + commit + эффекты","unit":"мс"},
+        "remount/mountReady": {"label":"Монтирование: до кадра с готовой формой","unit":"мс"},
+        "remount/scriptPerCycle": {"label":"JS на цикл mount + unmount (CDP)","unit":"мс"},
+        "remount/retainedPerCycle": {"label":"Удержание объектов после размонтирования","unit":"КБ/цикл"},
+        "remount/heapGrowth": {"label":"Рост heap на перемонтирование после прогрева (с кодом JIT)","unit":"КБ/цикл"},
+        "remount/nodesSlope": {"label":"Прирост DOM-узлов на перемонтирование","unit":"шт"}
+      },
+      "sections": [
+        {
+          "id": "load",
+          "title": "Холодная загрузка",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [636,529.6,674.2,null,0],
+                "vue": [653.3,601.8,859.1,null,0],
+                "angular": [819.45,741.6,918.6,null,0]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[354,316,409,null,0],"vue":[626,587,823,null,0],"angular":[774,709,887,null,0]}
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[387,346.5,419,null,0],"vue":[149,129.1,180.8,null,0],"angular":[377.8,366.1,428.8,null,0]}
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [316,266.5,337,null,0],
+                "vue": [481.5,432.8,623.3,null,0],
+                "angular": [603.5,544.3,681.3,null,0]
+              }
+            },
+            {
+              "id": "heap",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[2991,2991,2992,null,0],"vue":[4348,4348,4348,null,0],"angular":[4682,4682,4682,null,0]}
+            },
+            {
+              "id": "nodes",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[114,114,114,null,0],"vue":[550,550,550,null,0],"angular":[245,245,245,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "load-invite",
+          "title": "Загрузка по приглашению (гидратация префиллом)",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [648.8,551.2,800.4,null,0],
+                "vue": [653,546.3,743.8,null,0],
+                "angular": [693.2,654.8,848,null,0]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[360,297,422,null,0],"vue":[234,216,269,null,0],"angular":[324,308,377,null,0]}
+            },
+            {
+              "id": "hydrate",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [279.1,235.4,342.8,null,0],
+                "vue": [420.1,341.3,471.9,null,0],
+                "angular": [383.8,343.1,460.2,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [389.3,323.7,469.8,null,0],
+                "vue": [126.3,124.5,142.8,null,0],
+                "angular": [351.9,337.2,435.6,null,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [301.5,248.5,392.8,null,0],
+                "vue": [387.5,299.3,461.5,null,0],
+                "angular": [447,415,582.3,null,0]
+              }
+            },
+            {
+              "id": "heap",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[2922,2922,2922,null,0],"vue":[4430,4430,4431,null,0],"angular":[4681,4681,4681,null,0]}
+            },
+            {
+              "id": "nodes",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[116,116,116,null,0],"vue":[552,552,552,null,0],"angular":[247,247,247,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "typing-pristine",
+          "title": "Ввод до первой отправки (username, email)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [13.73,10.41,15.85,null,0],
+                "vue": [23.55,22.26,28.77,null,0],
+                "angular": [16.68,13.21,19.9,null,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [21.97,19.56,24.28,null,0],
+                "vue": [39.48,33.49,41.48,null,0],
+                "angular": [27.96,23.87,31.09,null,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [16.57,12.16,18.65,null,0],
+                "vue": [26.049999999999997,23.89,31.79,null,0],
+                "angular": [19.05,14.85,22.3,null,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [4.472,3.36,4.897,null,0],
+                "vue": [2.317,1.9147,2.54,null,0],
+                "angular": [6.076,5.324,7.409,null,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [3.053,2.358,3.279,null,0],
+                "vue": [5.464,4.953,5.952,null,0],
+                "angular": [3.265,2.716,3.9,null,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "react": [141,124.3,145.8,null,0],
+                "vue": [162.5,159.3,164,null,0],
+                "angular": [150.5,142.5,158.3,null,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "submit-invalid",
+          "title": "Отправка с ошибками → ошибки на экране",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [154.3,112.3,178.6,null,0],
+                "vue": [205.5,150,236.5,null,0],
+                "angular": [193,134.8,205.8,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [177.2,128.7,194.8,null,0],
+                "vue": [156.1,117.1,185.4,null,0],
+                "angular": [190.2,133.7,203.7,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [95.43,71.13,106.2,null,0],
+                "vue": [20.89,15.86,24.02,null,0],
+                "angular": [97.12,69.79,106,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [43.62,31.77,46.8,null,0],
+                "vue": [121.4,66.7,125.6,null,0],
+                "angular": [62.45,42.92,71.26,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "typing-live",
+          "title": "Ввод после отправки — живая валидация (пароль, имя, телефон)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [19.88,15.56,23.36,null,0],
+                "vue": [31.549999999999997,24,33.45,null,0],
+                "angular": [19.17,14.6,21.75,null,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [38.1,29.75,40.3,null,0],
+                "vue": [60.88,42.24,70.91,null,0],
+                "angular": [35.24,26.71,40.88,null,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [23.13,17.92,26.32,null,0],
+                "vue": [34.07,25.85,36.73,null,0],
+                "angular": [21.75,16.41,24.31,null,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [9.577,6.954,10.41,null,0],
+                "vue": [3.151,2.559,3.481,null,0],
+                "angular": [7.861,6.008,9.002,null,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [5.573,4.238,6.096,null,0],
+                "vue": [10.89,8.681,11.79,null,0],
+                "angular": [5.599,3.715,6.23,null,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[174,165.3,182,null,0],"vue":[194,192.5,195.8,null,0],"angular":[183,167.5,185.5,null,0]}
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[0,0,0,null,0],"vue":[12.5,0,39.25,null,0],"angular":[0,0,0,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "async-taken",
+          "title": "Занятое имя: ввод → ошибка от сервера",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[1134,1104,1172,null,0],"vue":[1271,1199,1329,null,0],"angular":[1196,1129,1227,null,0]}
+            },
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [20.63,18.8,21.450000000000003,null,0],
+                "vue": [30.67,23.86,39.550000000000004,null,0],
+                "angular": [21.68,15.3,24.85,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [66.77,59.56,81.29,null,0],
+                "vue": [32.36,28.46,35.8,null,0],
+                "angular": [84.29,59.92,92.49,null,0]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM, а его библиотеки компонентов дают по-разному. @reformer/ui-kit на время серверной проверки показывает под полем индикатор и убирает его по ответу сервера — фаза затихает после ответа. Vuetify на каждой клавише переписывает атрибут value поля — фаза затихает не раньше последней клавиши. Taiga UI пишет значение свойством и по ответу сервера DOM не меняет — фаза затихает, как только снята синхронная ошибка. Эту строку между стеками не сравнивайте: задержку ввода сравнивает «клавиша → конец обработки»."],
+          "apiCalls": null
+        },
+        {
+          "id": "async-fix",
+          "title": "Исправление имени: ввод → ошибка снята",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[1122,1028,1139,null,0],"vue":[1245,1180,1267,null,0],"angular":[353,330.9,372.4,null,0]}
+            },
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[18.75,14.6,19.82,null,0],"vue":[27,25.75,29.32,null,0],"angular":[20,13.7,21.63,null,0]}
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [71.44,47.75,80.44,null,0],
+                "vue": [31.23,26.16,32.57,null,0],
+                "angular": [84.39,57.17,89.77,null,0]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM, а его библиотеки компонентов дают по-разному. @reformer/ui-kit на время серверной проверки показывает под полем индикатор и убирает его по ответу сервера — фаза затихает после ответа. Vuetify на каждой клавише переписывает атрибут value поля — фаза затихает не раньше последней клавиши. Taiga UI пишет значение свойством и по ответу сервера DOM не меняет — фаза затихает, как только снята синхронная ошибка. Эту строку между стеками не сравнивайте: задержку ввода сравнивает «клавиша → конец обработки»."],
+          "apiCalls": null
+        },
+        {
+          "id": "captcha-refresh",
+          "title": "Обновление капчи",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [31.65,22.32,38.63,null,0],
+                "vue": [41.75,32.45,48.4,null,0],
+                "angular": [44.35,33,47.85,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [54.75,46.35,59.95,null,0],
+                "vue": [61.7,56.75,70.63,null,0],
+                "angular": [58.75,55.25,63.28,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [8.565,5.9,9.848,null,0],
+                "vue": [4.7,3.828,5.252,null,0],
+                "angular": [10.68,8.185,13.2,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [17.34,13.19,19.76,null,0],
+                "vue": [10.57,9.1,14.82,null,0],
+                "angular": [18.18,16.19,20.04,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "captcha-type",
+          "title": "Ввод капчи с проверкой на сервере",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "react": [956.4,925.5,982.7,null,0],
+                "vue": [806.1,760,849,null,0],
+                "angular": [609.3,582,627.48,null,0]
+              }
+            },
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [26.450000000000003,19.8,28.44,null,0],
+                "vue": [53.949999999999996,49.64,62.64,null,0],
+                "angular": [22.95,16.29,26.24,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [82.86,70.92,88.18,null,0],
+                "vue": [26.93,23.86,32.08,null,0],
+                "angular": [63.34,49.248,73.56,null,0]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM, а его библиотеки компонентов дают по-разному. @reformer/ui-kit на время серверной проверки показывает под полем индикатор и убирает его по ответу сервера — фаза затихает после ответа. Vuetify на каждой клавише переписывает атрибут value поля — фаза затихает не раньше последней клавиши. Taiga UI пишет значение свойством и по ответу сервера DOM не меняет — фаза затихает, как только снята синхронная ошибка. Эту строку между стеками не сравнивайте: задержку ввода сравнивает «клавиша → конец обработки»."],
+          "apiCalls": null
+        },
+        {
+          "id": "terms",
+          "title": "Чекбокс условий",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [58.45,37.58,64.2,null,0],
+                "vue": [92.25,74.35,102,null,0],
+                "angular": [79.25,63.23,90.58,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [40.35,25.88,43.8,null,0],
+                "vue": [79.25,65.4,84.7,null,0],
+                "angular": [77.2,62.13,87.97,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [27.13,17.47,29.05,null,0],
+                "vue": [8.495000000000001,5.78,9.395,null,0],
+                "angular": [18.91,15.33,20.652,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [14.53,10.43,15.74,null,0],
+                "vue": [24.49,18.14,25.59,null,0],
+                "angular": [43.08,38.23,52.09,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "submit-valid",
+          "title": "Успешная отправка",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [44.9,30.95,53.32,null,0],
+                "vue": [39.7,34.55,52.63,null,0],
+                "angular": [39.95,30.77,45.550000000000004,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [69.35,63.2,73.5,null,0],
+                "vue": [70.05000000000001,64.58,76.13,null,0],
+                "angular": [61.2,57.05,66.13,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [24.39,20.48,32.21,null,0],
+                "vue": [5.33,4.383,6.12,null,0],
+                "angular": [13.75,10.52,16.41,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [15.64,13.61,21.78,null,0],
+                "vue": [18.47,15.07,21.48,null,0],
+                "angular": [16.76,13.75,20.54,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "remount",
+          "title": "Перемонтирование формы",
+          "kind": "remount",
+          "rows": [
+            {
+              "id": "mountSync",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [1.2,0.8625,1.462,null,0],
+                "vue": [4.675,3.725,4.888,null,0],
+                "angular": [13.35,12.56,16.21,null,0]
+              }
+            },
+            {
+              "id": "mountReady",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [61.27,38.57,67.88,null,0],
+                "vue": [234.1,214.46,259.9,null,0],
+                "angular": [185.9,176.3,229.7,null,0]
+              }
+            },
+            {
+              "id": "scriptPerCycle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [39.72,24.81,43.93,null,0],
+                "vue": [1.62,1.39,1.857,null,0],
+                "angular": [99.5,93.75,115.3,null,0]
+              }
+            },
+            {
+              "id": "retainedPerCycle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [3.409,0.8567,3.497,null,0],
+                "vue": [0.36,0.3001,0.4016,null,0],
+                "angular": [1.041,1.036,1.119,null,0]
+              }
+            },
+            {
+              "id": "heapGrowth",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [8.431,6.135,8.432,null,0],
+                "vue": [2.427,2.009,3.132,null,0],
+                "angular": [-3.412,-3.42,-3.394,null,0]
+              }
+            },
+            {
+              "id": "nodesSlope",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
+            }
+          ],
+          "notes": ["Перемонтирование — новый корень фреймворка с формой: createRoot у React, createApp у Vue, createComponent у Angular. Библиотека компонентов настраивается один раз на страницу (экземпляр Vuetify, провайдеры Taiga UI). Форма строится после загрузки начальных значений, поэтому «синхронное монтирование» покрывает только оболочку страницы — сравнивайте «монтирование до готовности».","Перед замером — перемонтирования прогрева без записи: в первые десятки циклов кучу растит код движка (байт-код, векторы обратной связи, оптимизированный код). «Удержание объектов» — прирост живых объектов страницы между снимками кучи до и после серии, без кода JIT: утечка — когда он больше нуля."],
+          "apiCalls": null
+        }
+      ],
+      "renders": [],
+      "calibration": {
+        "n": 30,
+        "median": 101.3,
+        "spread": 0.3175,
+        "trend": -0.1152,
+        "runDriftMedian": -0.02711,
+        "runDriftMaxAbs": 0.6606,
+        "flags": ["spread","trend","run"]
+      },
+      "background": null
+    },
+    {
+      "id": "credit",
+      "title": "кредитная заявка",
+      "runId": "2026-11-25T12-54-22Z_credit_dc4d67c",
+      "cpu": 4,
+      "libs": ["react","vue","angular"],
+      "failures": 0,
+      "headline": [
+        {"phase":"load","metric":"ready"},
+        {"phase":"load","metric":"tbt"},
+        {"phase":"step1-typing","metric":"keyProc"},
+        {"phase":"step4-typing","metric":"keyProc"},
+        {"phase":"next-1","metric":"settle"},
+        {"phase":"next-invalid","metric":"settle"},
+        {"phase":"array-add","metric":"settle"},
+        {"phase":"array-type-last","metric":"keyProc"},
+        {"phase":"remount","metric":"mountReady"},
+        {"phase":"load","metric":"heap"}
+      ],
+      "metrics": {
+        "load/ready": {"label":"Готовность формы (от начала навигации)","unit":"мс"},
+        "load/fcp": {"label":"First Contentful Paint","unit":"мс"},
+        "load/script": {"label":"Выполнение JS (CDP ScriptDuration)","unit":"мс"},
+        "load/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "load/heap": {"label":"JS heap после GC","unit":"КБ"},
+        "load/nodes": {"label":"DOM-узлы","unit":""},
+        "click/clickFrame": {"label":"Клик → конец кадра","unit":"мс"},
+        "click/settle": {"label":"Клик → UI затих","unit":"мс"},
+        "click/script": {"label":"Выполнение JS (CDP)","unit":"мс"},
+        "click/layout": {"label":"Layout + style","unit":"мс"},
+        "typing/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "typing/keyProcP95": {"label":"Клавиша → конец обработки (p95 прогона)","unit":"мс"},
+        "typing/keyFrame": {"label":"Клавиша → конец кадра (медиана)","unit":"мс"},
+        "typing/scriptPerKey": {"label":"JS на клавишу (CDP)","unit":"мс"},
+        "typing/layoutPerKey": {"label":"Layout + style на клавишу","unit":"мс"},
+        "typing/slowEvents": {"label":"События ≥ 16 мс (Event Timing)","unit":"шт"},
+        "typing/tbt": {"label":"Total Blocking Time","unit":"мс"},
+        "async/settle": {"label":"Ввод → UI затих (вкл. debounce 300 мс и сеть 20 мс)","unit":"мс"},
+        "async/keyProc": {"label":"Клавиша → конец обработки (медиана)","unit":"мс"},
+        "async/script": {"label":"Выполнение JS за фазу (CDP)","unit":"мс"},
+        "remount/mountSync": {"label":"Монтирование: рендер + commit + эффекты","unit":"мс"},
+        "remount/mountReady": {"label":"Монтирование: до кадра с готовой формой","unit":"мс"},
+        "remount/scriptPerCycle": {"label":"JS на цикл mount + unmount (CDP)","unit":"мс"},
+        "remount/retainedPerCycle": {"label":"Удержание объектов после размонтирования","unit":"КБ/цикл"},
+        "remount/heapGrowth": {"label":"Рост heap на перемонтирование после прогрева (с кодом JIT)","unit":"КБ/цикл"},
+        "remount/nodesSlope": {"label":"Прирост DOM-узлов на перемонтирование","unit":"шт"}
+      },
+      "sections": [
+        {
+          "id": "load",
+          "title": "Холодная загрузка",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "react": [612.6,593.5,632.4,null,0],
+                "vue": [650.1,626.8,663.7,null,0],
+                "angular": [753.2,747.48,775.3,null,0]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[340,333,347,null,0],"vue":[664,640,678,null,0],"angular":[762,747,782,null,0]}
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "react": [416.1,407.9,439.3,null,0],
+                "vue": [126.3,121,129,null,0],
+                "angular": [393.3,376.9,400.9,null,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[296,288.3,314.5,null,0],"vue":[501,482,511.5,null,0],"angular":[594,584.5,601.5,null,0]}
+            },
+            {
+              "id": "heap",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[3659,3658,3659,null,0],"vue":[4641,4641,4641,null,0],"angular":[4986,4986,4988,null,0]}
+            },
+            {
+              "id": "nodes",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[213,213,213,null,0],"vue":[483,483,483,null,0],"angular":[274,274,274,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "load-application",
+          "title": "Загрузка сохранённой заявки (гидратация данными)",
+          "kind": "load",
+          "rows": [
+            {
+              "id": "ready",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [599,575.9,608.1,null,0],
+                "vue": [608.5,597.9,652.7,null,0],
+                "angular": [719.7,703.4,738.6,null,0]
+              }
+            },
+            {
+              "id": "fcp",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[294,288,296,null,0],"vue":[230,215,257,null,0],"angular":[308,301,327,null,0]}
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [398,382.3,404.3,null,0],
+                "vue": [123,114.3,137.3,null,0],
+                "angular": [372.4,362.7,379.1,null,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[280,260.5,293,null,0],"vue":[392,379.5,422.3,null,0],"angular":[498,486,509.3,null,0]}
+            },
+            {
+              "id": "heap",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[3662,3660,3662,null,0],"vue":[4650,4650,4650,null,0],"angular":[5006,5006,5006,null,0]}
+            },
+            {
+              "id": "nodes",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[216,216,216,null,0],"vue":[485,485,485,null,0],"angular":[276,276,276,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-invalid",
+          "title": "«Далее» на пустом шаге 1 → ошибки",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [64.85,63.4,67.44999999999999,null,0],
+                "vue": [74.65,71.73,77.85,null,0],
+                "angular": [70.9,66.2,87.07,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [49.6,48.75,50.38,null,0],
+                "vue": [52.5,48.92,55.95,null,0],
+                "angular": [70.5,65.47,86.7,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [34.11,33.28,35.553,null,0],
+                "vue": [11.34,10.49,11.88,null,0],
+                "angular": [35.89,33.56,43.26,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [14.86,13.75,16.4,null,0],
+                "vue": [30.13,27.45,33.31,null,0],
+                "angular": [16.12,14.83,17.77,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "loan-type",
+          "title": "Тип кредита → ипотека: условные поля и ставка",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [218.4,215.3,256,null,0],
+                "vue": [306.6,277.2,365.9,null,0],
+                "angular": [198.2,190.3,209.1,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [638.45,625.3,690.5,null,0],
+                "vue": [624.3,563.4,782.4,null,0],
+                "angular": [414,392.4,469.2,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [183.6,174.7,209.3,null,0],
+                "vue": [51.05,47.050000000000004,57.38,null,0],
+                "angular": [187.5,171.8,208,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [109.3,101.9,126.7,null,0],
+                "vue": [74.72,64.5,86.35,null,0],
+                "angular": [121.6,112,133.8,null,0]
+              }
+            }
+          ],
+          "notes": ["Список у всех трёх библиотек компонентов всплывающий: фаза — открыть список и выбрать пункт (два клика и появление панели)."],
+          "apiCalls": null
+        },
+        {
+          "id": "step1-typing",
+          "title": "Шаг 1: сумма, срок, цель, стоимость (живая валидация, вычисляемые)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [16.1,14.96,18.13,null,0],
+                "vue": [25.75,24.82,31.52,null,0],
+                "angular": [17.82,17.56,20.11,null,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [29.98,28.88,32.96,null,0],
+                "vue": [59.94,59.33,71.41,null,0],
+                "angular": [48.19,40.16,52.09,null,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [18.15,16.5,20.64,null,0],
+                "vue": [28.02,27.27,35.56,null,0],
+                "angular": [19.35,19.11,21.68,null,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [6.293,6.054,7.131,null,0],
+                "vue": [2.716,2.593,3.006,null,0],
+                "angular": [7.204,6.627,8.333,null,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [5.256,5.0154,5.449,null,0],
+                "vue": [10.79,10.148,11.94,null,0],
+                "angular": [6.012,5.355,7.139,null,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[154.5,149.8,155.8,null,0],"vue":[220,214,220.8,null,0],"angular":[189,184,191.8,null,0]}
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[0,0,0,null,0],"vue":[29,16,56.5,null,0],"angular":[0,0,0,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-1",
+          "title": "Переход на шаг 2",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [206.4,185.3,233,null,0],
+                "vue": [401.5,386.7,439.8,null,0],
+                "angular": [309.9,301.3,372.6,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [202.8,184,227.8,null,0],
+                "vue": [308.1,299.3,340.4,null,0],
+                "angular": [357.8,351.4,436.2,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [79.44,77.13,94.94,null,0],
+                "vue": [4.29,4.022,4.888,null,0],
+                "angular": [208.4,203.1,251.1,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [108.1,93.57,119.9,null,0],
+                "vue": [78.34,74.38,94.36,null,0],
+                "angular": [127.3,123.8,149.4,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "step2-typing",
+          "title": "Шаг 2: ФИО, паспорт, ИНН (маски)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [14.05,13.7,14.93,null,0],
+                "vue": [22.05,21.57,25.13,null,0],
+                "angular": [16,14.9,17.849999999999998,null,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [22.28,21.48,24.86,null,0],
+                "vue": [36.88,33.06,45.69,null,0],
+                "angular": [35.08,29.69,38.6,null,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[16.5,16.1,17.85,null,0],"vue":[25,23.8,27.82,null,0],"angular":[18.5,17.43,21.43,null,0]}
+            },
+            {
+              "id": "scriptPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [4.509,4.433,5.147,null,0],
+                "vue": [1.698,1.662,1.892,null,0],
+                "angular": [5.423,5.274,6.64,null,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [3.598,3.437,3.821,null,0],
+                "vue": [7.544,7.396,8.532,null,0],
+                "angular": [4.342,4.0649,4.994,null,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[177.5,174.5,180,null,0],"vue":[195,194,195,null,0],"angular":[178.5,175,181.3,null,0]}
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,9,null,0],"angular":[0,0,0,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-2",
+          "title": "Переход на шаг 3",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [167.1,163.8,193.48,null,0],
+                "vue": [348.9,336.8,433.3,null,0],
+                "angular": [287.7,259.8,326.4,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [163.9,161.6,191.3,null,0],
+                "vue": [291.8,275.7,340.1,null,0],
+                "angular": [333,301.9,405,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [110,106.2,120.9,null,0],
+                "vue": [6.49,6.043,7.1850000000000005,null,0],
+                "angular": [187.9,170.1,218.9,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [44.2,41.91,54.63,null,0],
+                "vue": [58.34,54.89,75.5,null,0],
+                "angular": [118.8,101.6,153.9,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "step3-typing",
+          "title": "Шаг 3: телефон, email, адрес",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[12,11.33,13.47,null,0],"vue":[19.5,18.7,22.13,null,0],"angular":[13.9,13.2,15.5,null,0]}
+            },
+            {
+              "id": "keyProcP95",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [18.88,18.15,23.13,null,0],
+                "vue": [31.9,29.46,34.02,null,0],
+                "angular": [29.12,25.98,32.19,null,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [14.149999999999999,13.57,16.02,null,0],
+                "vue": [21.6,20.57,24.63,null,0],
+                "angular": [16.2,15.22,18.07,null,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [3.325,3.281,3.985,null,0],
+                "vue": [1.596,1.563,1.803,null,0],
+                "angular": [4.551,4.245,5.324,null,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "react": [2.294,2.238,2.5149,null,0],
+                "vue": [4.771,4.752,5.479,null,0],
+                "angular": [2.964,2.675,3.341,null,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "react": [216.5,213,223,null,0],
+                "vue": [249.5,248.3,251.5,null,0],
+                "angular": [229.5,226.3,233.3,null,0]
+              }
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-3",
+          "title": "Переход на шаг 4",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [131,124,144.7,null,0],
+                "vue": [295.8,286.4,396.4,null,0],
+                "angular": [259.7,233,283.48,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [129.7,123.5,143.48,null,0],
+                "vue": [236.3,231.1,328.7,null,0],
+                "angular": [305.5,273.8,330.8,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [73.05000000000001,70.33,79.77,null,0],
+                "vue": [7.08,6.502,7.628,null,0],
+                "angular": [173.47,151.1,189.6,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [45.62,40.58,49.11,null,0],
+                "vue": [55.61,53.36,63.02,null,0],
+                "angular": [105.3,96.57,118.8,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "employment-switch",
+          "title": "Статус занятости → ИП: смена секций",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[57.5,57.17,62.35,null,0],"vue":[135.8,122,148,null,0],"angular":[135.6,121.45,149,null,0]}
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [45.05,41.63,47.73,null,0],
+                "vue": [104.5,93.25,115,null,0],
+                "angular": [156.6,140.8,173.2,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [34.53,33.17,38.57,null,0],
+                "vue": [4.165,3.802,4.545,null,0],
+                "angular": [62.78,59.76,70.85,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [8.184999999999999,7.395,9.558,null,0],
+                "vue": [23.18,21.89,23.53,null,0],
+                "angular": [65.21,55.94,72.245,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "step4-typing",
+          "title": "Шаг 4: стаж и доход (кросс-правила, доля платежа)",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [16.08,15.72,17.94,null,0],
+                "vue": [23.2,22.56,25.89,null,0],
+                "angular": [17.13,15.98,21.27,null,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [23.54,22.71,26.38,null,0],
+                "vue": [35.83,32.74,44.22,null,0],
+                "angular": [36.55,33.63,41.13,null,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [18.65,17.81,20.3,null,0],
+                "vue": [25.98,24.97,29.46,null,0],
+                "angular": [19.8,18.41,24.02,null,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [5.309,5.188,6.12,null,0],
+                "vue": [1.648,1.595,2.096,null,0],
+                "angular": [5.981,5.165,6.512,null,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [6.049,5.952,6.712,null,0],
+                "vue": [10.41,10.08,11.59,null,0],
+                "angular": [7.076,6.403,7.557,null,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[72.5,69.25,73,null,0],"vue":[75.5,74,76,null,0],"angular":[69,67.25,70.5,null,0]}
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0.75,null,0],"angular":[0,0,0,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-4",
+          "title": "Переход на шаг 5",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [120.4,117.5,145.2,null,0],
+                "vue": [198.8,193.7,229.4,null,0],
+                "angular": [149.1,140.3,158.8,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [118,115.7,142.6,null,0],
+                "vue": [162.3,156.5,194.6,null,0],
+                "angular": [170.5,161.2,181.9,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [76.41,74.34,94.85,null,0],
+                "vue": [6.16,5.445,6.268,null,0],
+                "angular": [88.66,84.448,97.22,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [34.25,33.68,42.3,null,0],
+                "vue": [35.45,34.34,36.88,null,0],
+                "angular": [62.09,56.72,69.82,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "array-toggle-on",
+          "title": "Массив имущества: включение (первая строка)",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [93.6,89.65,104.6,null,0],
+                "vue": [143.6,133.9,158.6,null,0],
+                "angular": [145.2,131.7,170,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [91.1,87.6,102.4,null,0],
+                "vue": [128.4,122.3,144.8,null,0],
+                "angular": [173.3,162.1,198.9,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [55.06,50.26,59.67,null,0],
+                "vue": [7.19,6.963,7.928,null,0],
+                "angular": [81.95,72.34,91.66,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [27.56,24.28,31.38,null,0],
+                "vue": [22.23,21.16,24.92,null,0],
+                "angular": [73.47,65.66,85.1,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "array-add",
+          "title": "Массив имущества: добавление строк до N",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[138.9,132,156.7,null,0],"vue":[233.9,230,301.8,null,0],"angular":[1084,1005,1266,null,0]}
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[1140,1127,1234,null,0],"vue":[1532,1489,1705,null,0],"angular":[1221,1112,1418,null,0]}
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [350.5,342.4,426.8,null,0],
+                "vue": [34.53,32.79,35.77,null,0],
+                "angular": [537,481.6,599.3,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [111.7,105.2,125.9,null,0],
+                "vue": [113.7,111.5,129.3,null,0],
+                "angular": [517.6,466.3,618,null,0]
+              }
+            }
+          ],
+          "notes": ["«Клик → конец кадра» у Angular здесь завышен способом замера. После клика строки добавляются нажатиями Enter каждые 80 мс. React и Vue перерисовывают форму в обработчике нажатия, и следующее нажатие ждёт его конца. Angular отвечает на нажатие сразу, а перерисовывает в кадре (requestAnimationFrame): нажатия идут подряд, и пока идут ввод и кадры, браузер не берёт обычные задачи. Конец кадра замер отмечает как раз обычной задачей — у первого клика она выполняется только в конце фазы. По Event Timing браузера строка после первого клика отрисована через ~70 мс у React и ~120–130 мс у Vue и Angular (CPU 4x, отдельная проба на тех же сборках)."],
+          "apiCalls": null
+        },
+        {
+          "id": "array-type-last",
+          "title": "Массив имущества: ввод в последней строке",
+          "kind": "typing",
+          "rows": [
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [18.18,16.89,19.21,null,0],
+                "vue": [28.77,26.44,31.04,null,0],
+                "angular": [32.5,29.2,38.69,null,0]
+              }
+            },
+            {
+              "id": "keyProcP95",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [34.67,32.63,35.44,null,0],
+                "vue": [51.58,50.27,58.52,null,0],
+                "angular": [64.86,53.42,70.88,null,0]
+              }
+            },
+            {
+              "id": "keyFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [25.23,23.38,26.02,null,0],
+                "vue": [35.6,33.88,40.64,null,0],
+                "angular": [43.28,37.55,53.64,null,0]
+              }
+            },
+            {
+              "id": "scriptPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [3.063,2.83,3.139,null,0],
+                "vue": [1.802,1.772,1.942,null,0],
+                "angular": [7.968,7.282,9.863,null,0]
+              }
+            },
+            {
+              "id": "layoutPerKey",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [3.9450000000000003,3.77,4.147,null,0],
+                "vue": [8.317,7.584,8.6,null,0],
+                "angular": [7.979,6.792,8.923,null,0]
+              }
+            },
+            {
+              "id": "slowEvents",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[36,35.25,37,null,0],"vue":[45,45,46,null,0],"angular":[40,40,40,null,0]}
+            },
+            {
+              "id": "tbt",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "array-remove",
+          "title": "Массив имущества: удаление последней строки",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [53.34999999999999,48.52,60.5,null,0],
+                "vue": [89.8,82.1,102,null,0],
+                "angular": [78.1,74.1,81.22,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [35.34999999999999,31.95,38.17,null,0],
+                "vue": [63.5,60.57,75.35000000000001,null,0],
+                "angular": [42.1,38.52,42.85,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [22.91,21.79,24.28,null,0],
+                "vue": [6.945,6.215,7.993,null,0],
+                "angular": [21.01,19.63,21.54,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [12.49,11.46,14.27,null,0],
+                "vue": [13.81,12.91,15.5,null,0],
+                "angular": [24.21,23.39,28.89,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "array-toggle-off",
+          "title": "Массив имущества: выключение (очистка)",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[43,39.88,50.02,null,0],"vue":[105.8,99.5,115.4,null,0],"angular":[103.7,96.32,141,null,0]}
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [33.4,32.13,40.9,null,0],
+                "vue": [91.05,87.97,100.3,null,0],
+                "angular": [102.6,95.15,136.6,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [25.93,24.45,31.29,null,0],
+                "vue": [4.615,4.55,5.03,null,0],
+                "angular": [55.78,53.13,80.14,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [3.97,3.46,4.582,null,0],
+                "vue": [5.1,5.024999999999999,5.192,null,0],
+                "angular": [23.57,19.38,27.27,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "next-5",
+          "title": "Переход на шаг 6",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [94.25,88.35,113.2,null,0],
+                "vue": [191.6,180.6,243.9,null,0],
+                "angular": [149.1,138.1,178.8,null,0]
+              }
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [94,87.95,107.7,null,0],
+                "vue": [166.9,159,208.8,null,0],
+                "angular": [163.6,150.5,192.9,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [49.445,45.42,54.15,null,0],
+                "vue": [7.84,7.335,8.442,null,0],
+                "angular": [96.52,86.48,117.7,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [35.91,30.27,44.07,null,0],
+                "vue": [28.42,26.31,32.53,null,0],
+                "angular": [47.91,43.48,54.04,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "sms-type",
+          "title": "Код из СМС с проверкой на сервере",
+          "kind": "async",
+          "rows": [
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [530.6,522.2,534,null,0],
+                "vue": [567.1,562,571.4,null,0],
+                "angular": [23.5,22.32,30.42,null,0]
+              }
+            },
+            {
+              "id": "keyProc",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [12.9,12.39,13.54,null,0],
+                "vue": [17.57,16.41,21.97,null,0],
+                "angular": [12.38,10.88,14.46,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [27.7,25.16,29.3,null,0],
+                "vue": [10.23,9.05,11.01,null,0],
+                "angular": [23.95,20.07,28.18,null,0]
+              }
+            }
+          ],
+          "notes": ["«UI затих» — последнее изменение DOM, а его библиотеки компонентов дают по-разному. @reformer/ui-kit на время серверной проверки показывает под полем индикатор и убирает его по ответу сервера — фаза затихает после ответа. Vuetify на каждой клавише переписывает атрибут value поля — фаза затихает не раньше последней клавиши. Taiga UI пишет значение свойством и по ответу сервера DOM не меняет — фаза затихает, как только снята синхронная ошибка. Эту строку между стеками не сравнивайте: задержку ввода сравнивает «клавиша → конец обработки»."],
+          "apiCalls": null
+        },
+        {
+          "id": "submit-valid",
+          "title": "Отправка заявки",
+          "kind": "click",
+          "rows": [
+            {
+              "id": "clickFrame",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[48.45,46.92,57,null,0],"vue":[54.9,48.17,60.77,null,0],"angular":[43.8,37.8,47.2,null,0]}
+            },
+            {
+              "id": "settle",
+              "best": null,
+              "noisy": false,
+              "cells": {
+                "react": [94.3,89.42,103.8,null,0],
+                "vue": [96.45,93.22,104.2,null,0],
+                "angular": [89.15,87.13,90.97,null,0]
+              }
+            },
+            {
+              "id": "script",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [33.24,32.05,37.91,null,0],
+                "vue": [14.16,13.17,16.08,null,0],
+                "angular": [20.39,19.12,21.91,null,0]
+              }
+            },
+            {
+              "id": "layout",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [26.11,24.84,28.13,null,0],
+                "vue": [20.36,18.38,26.74,null,0],
+                "angular": [10.42,9.545,12.07,null,0]
+              }
+            }
+          ],
+          "notes": [],
+          "apiCalls": null
+        },
+        {
+          "id": "remount",
+          "title": "Перемонтирование формы",
+          "kind": "remount",
+          "rows": [
+            {
+              "id": "mountSync",
+              "best": null,
+              "noisy": true,
+              "cells": {"react":[1.3,1.2,1.425,null,0],"vue":[4.175,3.912,4.737,null,0],"angular":[11.5,10.8,12.84,null,0]}
+            },
+            {
+              "id": "mountReady",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [63.93,61.99,72.32,null,0],
+                "vue": [167.1,148.9,195.3,null,0],
+                "angular": [158,146.1,188.5,null,0]
+              }
+            },
+            {
+              "id": "scriptPerCycle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [46.79,45.1,54.31,null,0],
+                "vue": [1.1949999999999998,1.073,1.255,null,0],
+                "angular": [77,70.58,89.98,null,0]
+              }
+            },
+            {
+              "id": "retainedPerCycle",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [0.3102,0.2908,0.4508,null,0],
+                "vue": [0.1778,0.1657,0.1945,null,0],
+                "angular": [0.3985,0.3726,0.463,null,0]
+              }
+            },
+            {
+              "id": "heapGrowth",
+              "best": null,
+              "noisy": true,
+              "cells": {
+                "react": [1.747,1.742,1.754,null,0],
+                "vue": [0.4326,-0.7778,1.73,null,0],
+                "angular": [10.22,9.524,10.26,null,0]
+              }
+            },
+            {
+              "id": "nodesSlope",
+              "best": null,
+              "noisy": false,
+              "cells": {"react":[0,0,0,null,0],"vue":[0,0,0,null,0],"angular":[0,0,0,null,0]}
+            }
+          ],
+          "notes": ["Перемонтирование — новый корень фреймворка с формой: createRoot у React, createApp у Vue, createComponent у Angular. Библиотека компонентов настраивается один раз на страницу (экземпляр Vuetify, провайдеры Taiga UI). Форма строится после загрузки начальных значений, поэтому «синхронное монтирование» покрывает только оболочку страницы — сравнивайте «монтирование до готовности».","Перед замером — перемонтирования прогрева без записи: в первые десятки циклов кучу растит код движка (байт-код, векторы обратной связи, оптимизированный код). «Удержание объектов» — прирост живых объектов страницы между снимками кучи до и после серии, без кода JIT: утечка — когда он больше нуля."],
+          "apiCalls": null
+        }
+      ],
+      "renders": [],
+      "calibration": {
+        "n": 30,
+        "median": 88.13,
+        "spread": 0.1138,
+        "trend": 0.08057,
+        "runDriftMedian": 0.00464,
+        "runDriftMaxAbs": 0.4286,
+        "flags": ["spread","run"]
+      },
+      "background": null
+    }
+  ],
+  "bundle": [
+    {
+      "lib": "react",
+      "form": "credit",
+      "raw": 637.1,
+      "gzip": 197.5,
+      "brotli": 168.2,
+      "overBaselineGzip": null,
+      "top": [["react-dom",176.8],["@reformer/ui-kit",85.37],["@reformer/core",78.75],["форма: общий код",62.23],["react-day-picker",40.21]]
+    },
+    {
+      "lib": "vue",
+      "form": "credit",
+      "raw": 544.2,
+      "gzip": 180.7,
+      "brotli": 154.5,
+      "overBaselineGzip": null,
+      "top": [["vuetify",265.8],["@reformer/core",70.87],["форма: общий код",62.23],["@vue/runtime-core",44.22],["@vuetify/v0",27.34]]
+    },
+    {
+      "lib": "angular",
+      "form": "credit",
+      "raw": 717.9,
+      "gzip": 192.7,
+      "brotli": 162.5,
+      "overBaselineGzip": null,
+      "top": [["@angular/core",134.1],["@taiga-ui/core",129.2],["форма: общий код",87.147],["@reformer/core",81.18],["@angular/router",73.82]]
+    },
+    {
+      "lib": "react",
+      "form": "registration",
+      "raw": 579.5,
+      "gzip": 184.2,
+      "brotli": 157.2,
+      "overBaselineGzip": null,
+      "top": [["react-dom",176.8],["@reformer/ui-kit",85.38],["@reformer/core",72.74],["react-day-picker",40.21],["date-fns",22.32]]
+    },
+    {
+      "lib": "vue",
+      "form": "registration",
+      "raw": 486.5,
+      "gzip": 167.5,
+      "brotli": 143.5,
+      "overBaselineGzip": null,
+      "top": [["vuetify",265.8],["@reformer/core",64.86],["@vue/runtime-core",44.22],["@vuetify/v0",27.34],["@vue/reactivity",17.39]]
+    },
+    {
+      "lib": "angular",
+      "form": "registration",
+      "raw": 636.4,
+      "gzip": 178.5,
+      "brotli": 151.6,
+      "overBaselineGzip": null,
+      "top": [["@angular/core",134.1],["@taiga-ui/core",129.1],["@reformer/core",74.11],["@angular/router",73.82],["@reformer/kit-taiga",28.9]]
+    }
+  ],
+  "code": [
+    {
+      "lib": "react",
+      "form": "credit",
+      "formTs": 559,
+      "formJson": 1000,
+      "kitTs": 216,
+      "total": 1775,
+      "files": 9,
+      "gzip": 10807
+    },
+    {
+      "lib": "react",
+      "form": "registration",
+      "formTs": 119,
+      "formJson": 82,
+      "kitTs": 225,
+      "total": 426,
+      "files": 8,
+      "gzip": 4339
+    },
+    {
+      "lib": "vue",
+      "form": "credit",
+      "formTs": 559,
+      "formJson": 1000,
+      "kitTs": 244,
+      "total": 1803,
+      "files": 9,
+      "gzip": 10782
+    },
+    {
+      "lib": "vue",
+      "form": "registration",
+      "formTs": 119,
+      "formJson": 82,
+      "kitTs": 249,
+      "total": 450,
+      "files": 8,
+      "gzip": 4317
+    },
+    {
+      "lib": "angular",
+      "form": "credit",
+      "formTs": 559,
+      "formJson": 1000,
+      "kitTs": 266,
+      "total": 1825,
+      "files": 10,
+      "gzip": 11280
+    },
+    {
+      "lib": "angular",
+      "form": "registration",
+      "formTs": 119,
+      "formJson": 82,
+      "kitTs": 286,
+      "total": 487,
+      "files": 9,
+      "gzip": 4635
+    }
+  ],
+  "calibration": {"cpu":4,"median":93,"spread":0.3225,"betweenForms":0.1489,"flags":["spread","forms"]}
+}

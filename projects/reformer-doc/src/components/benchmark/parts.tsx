@@ -3,9 +3,10 @@ import clsx from 'clsx';
 import Translate, { translate } from '@docusaurus/Translate';
 import { usePluralForm } from '@docusaurus/theme-common';
 import BarChart from './BarChart';
-import { LIB_ORDER, isDashed, libStyle } from './colors';
+import { isDashed, libStyle } from './colors';
 import { type Tile, sizeClaim } from './highlights';
 import { useBenchText } from './i18n';
+import { useParticipants } from './participants';
 import { CORE, fmt, libLabel } from './types';
 import styles from './bench.module.css';
 
@@ -39,9 +40,11 @@ export function formatDate(iso: string, isEn: boolean): string {
 
 /** Образцы цветов участников: имя рядом с цветом, baseline — контуром (`line` — линией). */
 export function LibSwatches({ line = false }: { line?: boolean }): ReactNode {
+  // Порядок и подписи — набора участников страницы (participants.ts).
+  const { order, label } = useParticipants();
   return (
     <>
-      {LIB_ORDER.map((lib) => (
+      {order.map((lib) => (
         <li key={lib} style={libStyle(lib)}>
           <span
             className={clsx(
@@ -55,7 +58,7 @@ export function LibSwatches({ line = false }: { line?: boolean }): ReactNode {
               baseline — та же разметка без библиотеки форм
             </Translate>
           ) : (
-            libLabel(lib)
+            label(lib)
           )}
         </li>
       ))}

@@ -1,0 +1,11 @@
+/**
+ * Своё у страницы /benchmark/frameworks; шапка, разделы, таблицы и графики — стили отчёта
+ * библиотек (forms.module.css) и общих компонентов бенчмарка (bench.module.css).
+ */
+
+.note {
+  max-width: 52rem;
+  margin: 1rem 0 0;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.85rem;
+}

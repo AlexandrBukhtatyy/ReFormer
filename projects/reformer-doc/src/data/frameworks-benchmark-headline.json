@@ -1,0 +1,246 @@
+{
+  "schema": 1,
+  "meta": {"generatedAt":"2026-11-25T16:36:53.347Z","iterations":10,"cpuRates":[4]},
+  "forms": [
+    {
+      "id": "registration",
+      "cpu": 4,
+      "rows": [
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "мс",
+          "id": "ready",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [636,529.6,674.2,null,0],
+            "vue": [653.3,601.8,859.1,null,0],
+            "angular": [819.45,741.6,918.6,null,0]
+          }
+        },
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "мс",
+          "id": "tbt",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [316,266.5,337,null,0],
+            "vue": [481.5,432.8,623.3,null,0],
+            "angular": [603.5,544.3,681.3,null,0]
+          }
+        },
+        {
+          "phase": "typing-pristine",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [13.73,10.41,15.85,null,0],
+            "vue": [23.55,22.26,28.77,null,0],
+            "angular": [16.68,13.21,19.9,null,0]
+          }
+        },
+        {
+          "phase": "typing-live",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [19.88,15.56,23.36,null,0],
+            "vue": [31.549999999999997,24,33.45,null,0],
+            "angular": [19.17,14.6,21.75,null,0]
+          }
+        },
+        {
+          "phase": "typing-live",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProcP95",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [38.1,29.75,40.3,null,0],
+            "vue": [60.88,42.24,70.91,null,0],
+            "angular": [35.24,26.71,40.88,null,0]
+          }
+        },
+        {
+          "phase": "submit-invalid",
+          "kind": "click",
+          "unit": "мс",
+          "id": "settle",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [177.2,128.7,194.8,null,0],
+            "vue": [156.1,117.1,185.4,null,0],
+            "angular": [190.2,133.7,203.7,null,0]
+          }
+        },
+        {
+          "phase": "remount",
+          "kind": "remount",
+          "unit": "мс",
+          "id": "mountReady",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [61.27,38.57,67.88,null,0],
+            "vue": [234.1,214.46,259.9,null,0],
+            "angular": [185.9,176.3,229.7,null,0]
+          }
+        },
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "КБ",
+          "id": "heap",
+          "best": null,
+          "noisy": false,
+          "cells": {"react":[2991,2991,2992,null,0],"vue":[4348,4348,4348,null,0],"angular":[4682,4682,4682,null,0]}
+        }
+      ],
+      "renders": []
+    },
+    {
+      "id": "credit",
+      "cpu": 4,
+      "rows": [
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "мс",
+          "id": "ready",
+          "best": null,
+          "noisy": false,
+          "cells": {
+            "react": [612.6,593.5,632.4,null,0],
+            "vue": [650.1,626.8,663.7,null,0],
+            "angular": [753.2,747.48,775.3,null,0]
+          }
+        },
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "мс",
+          "id": "tbt",
+          "best": null,
+          "noisy": false,
+          "cells": {"react":[296,288.3,314.5,null,0],"vue":[501,482,511.5,null,0],"angular":[594,584.5,601.5,null,0]}
+        },
+        {
+          "phase": "step1-typing",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [16.1,14.96,18.13,null,0],
+            "vue": [25.75,24.82,31.52,null,0],
+            "angular": [17.82,17.56,20.11,null,0]
+          }
+        },
+        {
+          "phase": "step4-typing",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [16.08,15.72,17.94,null,0],
+            "vue": [23.2,22.56,25.89,null,0],
+            "angular": [17.13,15.98,21.27,null,0]
+          }
+        },
+        {
+          "phase": "next-1",
+          "kind": "click",
+          "unit": "мс",
+          "id": "settle",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [202.8,184,227.8,null,0],
+            "vue": [308.1,299.3,340.4,null,0],
+            "angular": [357.8,351.4,436.2,null,0]
+          }
+        },
+        {
+          "phase": "next-invalid",
+          "kind": "click",
+          "unit": "мс",
+          "id": "settle",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [49.6,48.75,50.38,null,0],
+            "vue": [52.5,48.92,55.95,null,0],
+            "angular": [70.5,65.47,86.7,null,0]
+          }
+        },
+        {
+          "phase": "array-add",
+          "kind": "click",
+          "unit": "мс",
+          "id": "settle",
+          "best": null,
+          "noisy": true,
+          "cells": {"react":[1140,1127,1234,null,0],"vue":[1532,1489,1705,null,0],"angular":[1221,1112,1418,null,0]}
+        },
+        {
+          "phase": "array-type-last",
+          "kind": "typing",
+          "unit": "мс",
+          "id": "keyProc",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [18.18,16.89,19.21,null,0],
+            "vue": [28.77,26.44,31.04,null,0],
+            "angular": [32.5,29.2,38.69,null,0]
+          }
+        },
+        {
+          "phase": "remount",
+          "kind": "remount",
+          "unit": "мс",
+          "id": "mountReady",
+          "best": null,
+          "noisy": true,
+          "cells": {
+            "react": [63.93,61.99,72.32,null,0],
+            "vue": [167.1,148.9,195.3,null,0],
+            "angular": [158,146.1,188.5,null,0]
+          }
+        },
+        {
+          "phase": "load",
+          "kind": "load",
+          "unit": "КБ",
+          "id": "heap",
+          "best": null,
+          "noisy": false,
+          "cells": {"react":[3659,3658,3659,null,0],"vue":[4641,4641,4641,null,0],"angular":[4986,4986,4988,null,0]}
+        }
+      ],
+      "renders": []
+    }
+  ],
+  "bundle": [
+    {"lib":"react","form":"credit","gzip":197.5,"overBaselineGzip":null},
+    {"lib":"vue","form":"credit","gzip":180.7,"overBaselineGzip":null},
+    {"lib":"angular","form":"credit","gzip":192.7,"overBaselineGzip":null},
+    {"lib":"react","form":"registration","gzip":184.2,"overBaselineGzip":null},
+    {"lib":"vue","form":"registration","gzip":167.5,"overBaselineGzip":null},
+    {"lib":"angular","form":"registration","gzip":178.5,"overBaselineGzip":null}
+  ]
+}
