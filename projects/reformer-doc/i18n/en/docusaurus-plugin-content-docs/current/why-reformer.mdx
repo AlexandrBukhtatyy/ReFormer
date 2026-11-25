@@ -102,9 +102,9 @@ time.
 
 - **With the MCP server** the assistant does not write the form module itself: it describes the
   form with builder calls, and the server prints the code. In the [measurement](/docs/mcp/benchmark)
-  over 180 runs (Claude Sonnet, November 19, 2026) creating a form with the server took about
-  6 times fewer tokens by median: 5,007 output tokens against 29,952. Over the whole measurement
-  almost 5 times fewer input and output tokens were spent, hence the cost — 4.4 times lower.
+  over 180 runs (Claude Sonnet, November 21, 2026) creating a form with the server took about
+  6 times fewer tokens by median: 5,142 output tokens against 31,217. Over the whole measurement
+  almost 5 times fewer input and output tokens were spent, hence the cost — 4.3 times lower.
 - **Without the server** compactness and the layout save tokens. The form code itself is 2–2.5
   times shorter than with Formik, React Hook Form and RJSF: 399 lines against 890–992 in the
   [benchmark](/benchmark). The model has less to read and write, and to fix a rule it opens the
@@ -210,7 +210,7 @@ person follows.
 | AI makes up APIs                                              | The server builds the form and checks the types. For an unknown method, symbol or package it answers with the correct name                                           | [Diagnostic codes](/docs/mcp/diagnostic-codes) |
 | The model says "done", but the form does not work             | "Done" (`Done`) comes from the server, and only after a build and a type check on the current files                                                                  | [Tools](/docs/mcp/tools)                       |
 | Documentation for the AI has to come from somewhere           | `llms.txt` and the documentation index ship to npm with the packages. The server answers from them, not from the model's memory                                      | [MCP overview](/docs/mcp/overview)             |
-| The agent goes in circles and costs a lot                     | Measured on 19 November 2026, Claude Sonnet, 180 runs: with the server 96% of runs passed every check against 83% without it, 3.5 times faster and 4.4 times cheaper | [With MCP and without](/docs/mcp/benchmark)    |
+| The agent goes in circles and costs a lot                     | Measured on 21 November 2026, Claude Sonnet, 180 runs: with the server 97% of runs passed every check against 83% without it, 2.6 times faster and 4.3 times cheaper | [With MCP and without](/docs/mcp/benchmark)    |
 
 ## For product people and analysts {#builder}
 

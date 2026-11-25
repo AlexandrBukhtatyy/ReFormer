@@ -1,0 +1,86 @@
+/*
+ * Секция замеров MCP на лендинге. Шапка, сетка плиток и сноска — классы LandingBenchmark.module.css,
+ * сами плитки — bench.module.css: две секции бенчмарков подряд выглядят одной системой. Здесь — фон
+ * секции, подпись плитки, бары «без MCP / с MCP» и строка вывода. Только переменные Infima: обе темы
+ * сайта работают без своих цветов.
+ */
+.section {
+  padding: 3.5rem 0;
+  background: var(--ifm-background-color);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+@media screen and (max-width: 640px) {
+  .section {
+    padding: 2.5rem 0;
+  }
+}
+
+.tileKicker {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/*
+ * Два бара плитки: без MCP — нейтральный серый, с MCP — акцент. Каждую строку подписывает имя плеча
+ * и значение, поэтому смысл не передаётся одним цветом.
+ */
+/* Сразу под текстом, а не у низа плитки: у плиток разная высота текста, и бары внизу отрывались от него. */
+.bars {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.25rem 0 0;
+  list-style: none;
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: 4.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.barTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--ifm-color-emphasis-200);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--ifm-color-emphasis-500);
+}
+
+.barFillMcp {
+  background: var(--ifm-color-primary);
+}
+
+.barValue {
+  min-width: 3.25rem;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-font-color-base);
+}
+
+/* Вывод под плитками: сравнение с сильной моделью без сервера. */
+.takeaway {
+  max-width: 860px;
+  margin: 1.75rem auto 0;
+  padding: 0.9rem 1.2rem;
+  border-left: 3px solid var(--ifm-color-primary);
+  border-radius: 0 10px 10px 0;
+  background: color-mix(in srgb, var(--ifm-color-primary) 8%, transparent);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}

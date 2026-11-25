@@ -3,10 +3,14 @@ import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Translate, { translate } from '@docusaurus/Translate';
 import Heading from '@theme/Heading';
+import { useBenchText } from '@site/src/components/benchmark/i18n';
+import { proseNumber } from '@site/src/components/mcp-benchmark/format';
+import { MCP_HEADLINE } from '@site/src/components/mcp-benchmark/headline';
 
 import styles from './landing.module.css';
 
-type Msg = { id: string; message: string };
+/** Строка карточки; `values` — числа из данных для плейсхолдеров `{…}` в `message`. */
+type Msg = { id: string; message: string; values?: Record<string, string | number> };
 
 type WhyCard = {
   /** Якорь раздела на странице `/docs/why-reformer` — одинаковый в русской и английской версии. */
@@ -80,7 +84,14 @@ const CARDS: WhyCard[] = [
       },
       {
         id: 'homepage.why.ai.p3',
-        message: '96% прогонов проходят проверки против 83% без MCP, в 4,4 раза дешевле',
+        // Числа — из замеров MCP (/docs/mcp/benchmark), те же, что в секции замеров выше.
+        message:
+          '{withMcp}% прогонов проходят проверки против {noMcp}% без MCP, в {cost} раза дешевле',
+        values: {
+          withMcp: MCP_HEADLINE.quality.dsl,
+          noMcp: MCP_HEADLINE.quality.none,
+          cost: MCP_HEADLINE.costRatio,
+        },
       },
     ],
   },
@@ -129,6 +140,13 @@ const CARDS: WhyCard[] = [
 
 /** Лендинг: какие задачи решает ReFormer — главная мысль и выжимка по ролям со ссылками на страницу. */
 export default function WhyReformer(): ReactNode {
+  const { isEn } = useBenchText();
+  // Дроби из данных — по правилам языка страницы («в 4,3 раза» / «4.3 times»).
+  const valuesOf = (point: Msg) =>
+    point.values &&
+    Object.fromEntries(
+      Object.entries(point.values).map(([key, value]) => [key, proseNumber(value, isEn)])
+    );
   return (
     <section className={`${styles.section} ${styles.sectionAlt}`}>
       <div className="container">
@@ -157,7 +175,7 @@ export default function WhyReformer(): ReactNode {
               </Heading>
               <ul className={styles.points}>
                 {card.points.map((point) => (
-                  <li key={point.id}>{translate(point)}</li>
+                  <li key={point.id}>{translate(point, valuesOf(point))}</li>
                 ))}
               </ul>
               <Link className={styles.pkgLink} to={`/docs/why-reformer#${card.anchor}`}>

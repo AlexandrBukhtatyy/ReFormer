@@ -933,6 +933,78 @@
   "homepage.benchmark.memory.context": {
     "message": "Registration: JS memory after load and garbage collection minus the same page without a form library"
   },
+  "homepage.mcp.kicker": {
+    "message": "MCP measurements · {date}"
+  },
+  "homepage.mcp.title": {
+    "message": "An AI assistant with the MCP server and without it"
+  },
+  "homepage.mcp.lead": {
+    "message": "The same agent — Claude Sonnet in Claude Code — creates, edits and deletes ReFormer forms: in one arm with only the packages and their docs, in the other with the MCP server. Every run is checked by the same verifier: build, types and form behavior."
+  },
+  "homepage.mcp.arm.none": {
+    "message": "without MCP"
+  },
+  "homepage.mcp.arm.dsl": {
+    "message": "with MCP"
+  },
+  "homepage.mcp.unit.min": {
+    "message": "min"
+  },
+  "homepage.mcp.unit.sec": {
+    "message": "s"
+  },
+  "homepage.mcp.quality.kicker": {
+    "message": "Quality"
+  },
+  "homepage.mcp.quality.claim": {
+    "message": "of runs pass every check with MCP — {none}% without it"
+  },
+  "homepage.mcp.quality.context": {
+    "message": "Creating a form: {dsl} of {runs} with MCP against {none} of {runs} without it"
+  },
+  "homepage.mcp.quality.caveat": {
+    "message": "Editing and deleting a ready form pass almost always even without MCP: {none} of {runs} against {dsl} of {runs} — the gain is mostly in creation"
+  },
+  "homepage.mcp.speed.kicker": {
+    "message": "Speed"
+  },
+  "homepage.mcp.speed.claim": {
+    "message": "faster: all runs took {dsl} {min} against {none}"
+  },
+  "homepage.mcp.speed.context": {
+    "message": "Median run: {dsl} against {none} {sec}"
+  },
+  "homepage.mcp.cost.kicker": {
+    "message": "Cost"
+  },
+  "homepage.mcp.cost.claim": {
+    "message": "cheaper: {dsl} against {none} for all runs"
+  },
+  "homepage.mcp.cost.context": {
+    "message": "Per passed run: {dsl} against {none}"
+  },
+  "homepage.mcp.tokens.kicker": {
+    "message": "Tokens"
+  },
+  "homepage.mcp.tokens.claim": {
+    "message": "fewer output tokens per run, by median"
+  },
+  "homepage.mcp.tokens.context": {
+    "message": "Input including cache: {dsl} against {none}"
+  },
+  "homepage.mcp.opus.lead": {
+    "message": "A stronger model does not replace the server."
+  },
+  "homepage.mcp.opus.text": {
+    "message": "Claude Sonnet with MCP passes {sonnet}% of runs for {sonnetCost}, Claude Opus without MCP passes {opus}% for {opusCost} — {ratio} times more expensive."
+  },
+  "homepage.mcp.footnote": {
+    "message": "Scenarios: {scenarios}, stacks: {targets}, repeats: {repeats}, runs per arm: {runs} · the report also covers the failures"
+  },
+  "homepage.mcp.cta": {
+    "message": "View the report →"
+  },
   "benchmark.page.title": {
     "message": "Forms benchmark"
   },
@@ -1133,7 +1205,7 @@
     "message": "Loading the chart…"
   },
   "benchmark.traces.missing": {
-    "message": "No traces for this form — the values are in the tables of the “All phases” section."
+    "message": "No traces for this form — the values are in the tables above."
   },
   "benchmark.traces.aria": {
     "message": "Trace charts: {form}. Left and right arrows move the cursor, Shift — by 10 steps, Home and End — to the edges, Esc — hide; plus and minus — zoom, 0 — the whole trace."
@@ -1184,7 +1256,7 @@
     "message": "The charts are a single traced pass per participant from a separate run {traceRun} on the same page build (git {sha}, built {date}), CPU {cpu}x: not a median but the shape of the curve. The table numbers are medians of run {run}."
   },
   "benchmark.traces.sourceSame": {
-    "message": "The charts are a single traced pass per participant from run {run}, CPU {cpu}x: not a median but the shape of the curve. Exact numbers are in the tables of the “All phases” section."
+    "message": "The charts are a single traced pass per participant from run {run}, CPU {cpu}x: not a median but the shape of the curve. Exact numbers are in the tables above."
   },
   "benchmark.traces.sourceOtherBuild": {
     "message": "⚠️ The charts are a single traced pass per participant from run {traceRun} on a different page build (git {sha}, built {date}), CPU {cpu}x; the table numbers are medians of run {run}. The forms may have changed between builds."
@@ -1622,7 +1694,7 @@
     "message": "“Done” only after a build and a type check"
   },
   "homepage.why.ai.p3": {
-    "message": "96% of runs pass the checks against 83% without MCP, 4.4 times cheaper"
+    "message": "{withMcp}% of runs pass the checks against {noMcp}% without MCP, {cost} times cheaper"
   },
   "homepage.why.builder.role": {
     "message": "For product and analysts"

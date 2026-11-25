@@ -34,6 +34,7 @@ import {
   type Series,
   type View,
 } from './models';
+import { fmtRatio, fmtTokens, fmtUsd, percent } from './format';
 import type { ArmId, ArmSummary, Operation, ScenarioArm } from './types';
 import styles from './mcp-benchmark.module.css';
 
@@ -257,12 +258,8 @@ function checkLabel(check: string, lang: Lang): string {
 
 export const fmtMinutes = (value: number | null, lang: Lang): string =>
   value === null ? '—' : `${value < 10 ? value.toFixed(1) : Math.round(value)} ${TEXT[lang].min}`;
-export const fmtUsd = (value: number | null): string =>
-  value === null ? '—' : `$${value < 1 ? value.toFixed(3) : value.toFixed(2)}`;
-export const fmtTokens = (value: number): string =>
-  value >= 100_000 ? `${Math.round(value / 1000)}k` : `${(value / 1000).toFixed(1)}k`;
-const fmtRatio = (value: number): string => (value >= 10 ? value.toFixed(0) : value.toFixed(1));
-const percent = (passes: number, runs: number): number => (runs ? (passes / runs) * 100 : 0);
+// Форматы без зависимостей живут в format.ts (их берёт и лендинг); здесь — для графиков отчёта.
+export { fmtTokens, fmtUsd };
 
 // ---------- модели: подписи, заливка, наведение ----------
 

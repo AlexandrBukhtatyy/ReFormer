@@ -10,6 +10,7 @@ import BuilderShowcase from '@site/src/components/landing/BuilderShowcase';
 import WhyReformer from '@site/src/components/landing/WhyReformer';
 import HiddenBenefits from '@site/src/components/landing/HiddenBenefits';
 import LandingBenchmark from '@site/src/components/benchmark/LandingBenchmark';
+import LandingMcp from '@site/src/components/mcp-benchmark/LandingMcp';
 
 import styles from './index.module.css';
 
@@ -65,6 +66,7 @@ export default function Home(): ReactNode {
       <HomepageHeader />
       <main>
         <LandingBenchmark />
+        <LandingMcp />
         <Ecosystem />
         <WhyReformer />
         <HiddenBenefits />

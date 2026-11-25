@@ -31,8 +31,8 @@ your own infrastructure under a license, by agreement. The client points to it w
 
 The same agent with the server builds and edits forms more reliably, faster and cheaper than from
 the package documentation alone. Over 180 Claude Sonnet runs, with the `code-guided-dsl` surface —
-now the default — 96% of runs passed every check against 83% without MCP, the work went 3.5 times
-faster and cost 4.4 times less. The summary infographic and the results per scenario are on the
+now the default — 97% of runs passed every check against 83% without MCP, the work went 2.6 times
+faster and cost 4.3 times less. The summary infographic and the results per scenario are on the
 [Measurements: with MCP and without](./benchmark) page.
 
 ## What is MCP?

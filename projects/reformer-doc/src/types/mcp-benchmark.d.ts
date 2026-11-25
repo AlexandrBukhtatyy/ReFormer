@@ -10,3 +10,14 @@ declare module '@site/src/data/mcp-benchmark*.json' {
   const data: McpBenchData;
   export default data;
 }
+
+/**
+ * Те же файлы с `?headline` — сводки для лендинга (mcp-benchmark/headline.ts). Для сборщика это
+ * отдельный модуль JSON, и неиспользуемые поля (массивы прогонов) из него выбрасываются. Файла с
+ * таким именем нет, поэтому TypeScript берёт тип отсюда.
+ */
+declare module '@site/src/data/mcp-benchmark*.json?headline' {
+  import type { McpBenchData } from '@site/src/components/mcp-benchmark/types';
+  const data: McpBenchData;
+  export default data;
+}
