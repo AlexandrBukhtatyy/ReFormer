@@ -86,12 +86,35 @@ const warnedParts = new Set<string>();
  */
 const renderSchemaNode: RenderNodeFn = (node, key) => h(RenderNode, { key: key ?? node.id, node });
 
-/** Дети контейнера: текст подписывается точечно, узлы рисуются рекурсивно. */
-function renderChildren(children: readonly CompiledChild[]): VNodeChild[] {
+/** Способы отрисовки с обёрткой поля поддерева — по одному на обёртку, ссылка стабильна. */
+const renderSchemaNodeWith = new WeakMap<Component, RenderNodeFn>();
+
+/**
+ * Способ отрисовки для компонента, который ведёт детей сам: обёртка поля, переданная узлу,
+ * доходит и до узлов, которые он рисует.
+ */
+function renderNodeFor(fieldWrapper: Component | undefined): RenderNodeFn {
+  if (fieldWrapper === undefined) return renderSchemaNode;
+  let render = renderSchemaNodeWith.get(fieldWrapper);
+  if (render === undefined) {
+    render = (node, key) => h(RenderNode, { key: key ?? node.id, node, fieldWrapper });
+    renderSchemaNodeWith.set(fieldWrapper, render);
+  }
+  return render;
+}
+
+/**
+ * Дети контейнера: текст подписывается точечно, узлы рисуются рекурсивно. Обёртка поля,
+ * переданная узлу, уходит и детям — она действует на всё поддерево.
+ */
+function renderChildren(
+  children: readonly CompiledChild[],
+  fieldWrapper: Component | undefined
+): VNodeChild[] {
   return children.map((child) =>
     child.kind === 'text'
       ? h(RenderText, { key: child.id, parts: child.parts })
-      : h(RenderNode, { key: child.id, node: child })
+      : h(RenderNode, { key: child.id, node: child, fieldWrapper })
   );
 }
 
@@ -111,11 +134,12 @@ const attach = (target: NodeRef | undefined): Record<string, unknown> =>
 function renderContainer(
   node: CompiledContainerNode,
   props: Readonly<Record<string, unknown>>,
-  nodeRef: NodeRef | undefined
+  nodeRef: NodeRef | undefined,
+  fieldWrapper: Component | undefined
 ): VNodeChild {
   const { component, children, selector } = node;
   if (component === undefined || component === null || component === '') {
-    return renderChildren(children);
+    return renderChildren(children, fieldWrapper);
   }
 
   // HTML-тег (`component: 'div'`) — не компонент: его пропсы — атрибуты DOM, а `selector`
@@ -124,7 +148,11 @@ function renderContainer(
     const domProps = { ...toDomProps(props), ...attach(nodeRef) };
     return VOID_HTML_TAGS.has(component)
       ? h(component, domProps)
-      : h(component, domProps, children.length > 0 ? renderChildren(children) : undefined);
+      : h(
+          component,
+          domProps,
+          children.length > 0 ? renderChildren(children, fieldWrapper) : undefined
+        );
   }
 
   const type = component as Component & { __selfManagedChildren?: boolean };
@@ -151,14 +179,14 @@ function renderContainer(
       }
       ownProps.children = nodes;
     }
-    ownProps.renderNode = renderSchemaNode;
+    ownProps.renderNode = renderNodeFor(fieldWrapper);
     return h(type, ownProps);
   }
 
   return h(
     type,
     ownProps,
-    children.length > 0 ? { default: () => renderChildren(children) } : undefined
+    children.length > 0 ? { default: () => renderChildren(children, fieldWrapper) } : undefined
   );
 }
 
@@ -295,7 +323,8 @@ export const RenderNode = defineComponent({
               ),
               events
             ),
-            nodeRef
+            nodeRef,
+            props.fieldWrapper
           );
       }
     };
