@@ -65,9 +65,9 @@ export default function Home(): ReactNode {
     >
       <HomepageHeader />
       <main>
+        <Ecosystem />
         <LandingBenchmark />
         <LandingMcp />
-        <Ecosystem />
         <WhyReformer />
         <HiddenBenefits />
         <BuilderShowcase />
