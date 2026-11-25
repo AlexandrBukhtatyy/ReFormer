@@ -1,8 +1,8 @@
 /**
  * Раздел замеров MCP на лендинге — сразу под бенчмарком форм и устроен так же: плитки из данных
- * опубликованного отчёта /docs/mcp/benchmark и ссылка на него. Числа — из headline.ts (те же
- * формулы, что у плиток «Итога» отчёта), руками ничего не вписано. Рядом с утверждениями —
- * оговорка, где MCP почти ничего не меняет: правка и удаление проходят и без него.
+ * опубликованного отчёта /benchmark/mcp и ссылка на него. Числа — из headline.ts (те же формулы, что
+ * у плиток «Итога» отчёта), руками ничего не вписано. Рядом с утверждениями — оговорка, где MCP
+ * почти ничего не меняет: правка и удаление проходят и без него.
  */
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
@@ -250,7 +250,7 @@ export default function LandingMcp(): ReactNode {
           </Translate>
         </p>
         <div className={landingStyles.cta}>
-          <Link className="button button--primary button--lg" to="/docs/mcp/benchmark">
+          <Link className="button button--primary button--lg" to="/benchmark/mcp">
             <Translate id="homepage.mcp.cta">Смотреть отчёт →</Translate>
           </Link>
         </div>

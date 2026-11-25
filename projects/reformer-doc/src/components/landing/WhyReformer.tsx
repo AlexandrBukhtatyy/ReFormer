@@ -84,7 +84,7 @@ const CARDS: WhyCard[] = [
       },
       {
         id: 'homepage.why.ai.p3',
-        // Числа — из замеров MCP (/docs/mcp/benchmark), те же, что в секции замеров выше.
+        // Числа — из замеров MCP (/benchmark/mcp), те же, что в секции замеров выше.
         message:
           '{withMcp}% прогонов проходят проверки против {noMcp}% без MCP, в {cost} раза дешевле',
         values: {
