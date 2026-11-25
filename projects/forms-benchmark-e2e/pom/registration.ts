@@ -58,6 +58,9 @@ export class RegistrationPage {
 
   async goto(params: Record<string, string> = {}): Promise<void> {
     await this.page.goto(this.url(params));
+    // Харнесс страницы может появиться после события `load`: хост на Angular ставит его, когда
+    // догрузил чанк страницы и асинхронно запустил приложение.
+    await this.page.waitForFunction(() => Boolean((window as { __bench?: unknown }).__bench));
     await this.page.evaluate(() => (window as unknown as BenchWindow).__bench.ready);
     await this.idle();
   }

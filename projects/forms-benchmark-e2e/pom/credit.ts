@@ -5,6 +5,9 @@
  * тоже принимается), testid выводится `toDomPath`. Контрол поля (как вводить значение) берётся из
  * `CREDIT_FIELDS`, поэтому заполнение шага — по данным (`fillStep`), а не по списку локаторов.
  *
+ * Список ведёт драйвер контролов (./control-driver.ts): нативный по умолчанию, свой — у страницы
+ * на библиотеке компонентов, где список — всплывающая панель без `<select>`.
+ *
  * Методы с `fill`/`click` — для conformance; бенч вводит «сырым» вводом.
  */
 import { expect, type Locator, type Page } from '@playwright/test';
@@ -18,6 +21,7 @@ import {
   type CreditArrayKey,
   type CreditInput,
 } from '../../forms-benchmark/src/shared/domain/credit';
+import { nativeDriver, type ControlDriver, type SelectTarget } from './control-driver';
 
 export { SMS_VALID_CODE } from '../../forms-benchmark/src/shared/api/credit-fixtures';
 
@@ -222,7 +226,9 @@ interface BenchWindow {
 export class CreditPage {
   constructor(
     readonly page: Page,
-    readonly lib: string
+    readonly lib: string,
+    /** Как вести список: нативный `<select>` либо панель библиотеки компонентов. */
+    readonly driver: ControlDriver = nativeDriver
   ) {}
 
   // ── Локаторы ──
@@ -288,6 +294,9 @@ export class CreditPage {
 
   async goto(params: Record<string, string> = {}): Promise<void> {
     await this.page.goto(this.url(params));
+    // Харнесс страницы может появиться после события `load`: хост на Angular ставит его, когда
+    // догрузил чанк страницы и асинхронно запустил приложение.
+    await this.page.waitForFunction(() => Boolean((window as { __bench?: unknown }).__bench));
     await this.page.evaluate(() => (window as unknown as BenchWindow).__bench.ready);
     await this.idle();
   }
@@ -320,11 +329,14 @@ export class CreditPage {
     return Number(await this.stepIndicator.getAttribute('data-step'));
   }
 
+  /** Список поля `path` — для драйвера контролов. */
+  private select(path: string): SelectTarget {
+    return { page: this.page, id: toDomPath(path), input: this.input(path) };
+  }
+
   /** Значения опций Select (включая пустую `''`). */
   options(path: string): Promise<string[]> {
-    return this.input(path)
-      .locator('option')
-      .evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
+    return this.driver.options(this.select(path));
   }
 
   // ── Навигация ──
@@ -386,8 +398,7 @@ export class CreditPage {
       case 'select':
         // Опции городов и моделей приходят из API после смены региона/марки.
         if (meta.optionsFrom === 'cities' || meta.optionsFrom === 'carModels') await this.idle();
-        await this.input(path).selectOption(text);
-        return;
+        return this.driver.select(this.select(path), text);
       case 'radio':
         return this.radio(path, text).check();
       case 'checkbox':
@@ -434,14 +445,19 @@ export class CreditPage {
   }
 
   // ── Проверка значений ──
-  /** Значение поля на экране по его контролу (радио — отмеченная опция, чекбокс — `checked`). */
+  /**
+   * Значение поля на экране по его контролу (радио — отмеченная опция, чекбокс — `checked`,
+   * список — выбранное значение по драйверу).
+   */
   async expectValue(path: string, value: unknown): Promise<void> {
     const meta = fieldMeta(path);
-    if (meta.control === 'radio') await expect(this.radio(path, String(value))).toBeChecked();
+    const text = value == null ? '' : String(value);
+    if (meta.control === 'radio') await expect(this.radio(path, text)).toBeChecked();
     else if (meta.control === 'checkbox') {
       if (value === true) await expect(this.input(path)).toBeChecked();
       else await expect(this.input(path)).not.toBeChecked();
-    } else await expect(this.input(path)).toHaveValue(value == null ? '' : String(value));
+    } else if (meta.control === 'select') await this.driver.expectSelected(this.select(path), text);
+    else await expect(this.input(path)).toHaveValue(text);
   }
 
   /**
